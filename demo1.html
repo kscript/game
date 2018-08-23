@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,432 +10,475 @@
             padding: 0;
             margin: 0;
         }
-        #canvas{
+        #app canvas{
             background-color: #000;
         }
     </style>
 </head>
 <body>
     <div id="app">
-        <canvas id="canvas" width="750px" height="600px"></canvas>
-        <script>
-            function Scene(el, option) {
-                if (el) {
-                    this.rid = 0;
-                    this.die = false;
-                    this.el = el;
-                    this.cxt = el.getContext("2d");
-                    this.option = option || {};
-                    this.defaultOption = {
-                        width: 360,
-                        height: 600
-                    }
+    </div>
+    <script>
+        function Scene(el, option) {
+            if (el) {
+                this.rid = 0;
+                this.die = false;
+                this.option = option || {};
+                this.defaultOption = {
+                    width: 360,
+                    height: 600
                 }
+                this.el = this.creatCanvas(el);
+                this.cxt = this.el.getContext("2d");
             }
-            Scene.prototype = {
-                constructor: Scene,
-                run: function (){
-                    var self = this;
-                    this.refresh && this.refresh();
-                    if(this.option.state > 0){
-                        if(this.option.state === 1){
-                            this.option.state = 2;
-                            if(this.die){
-                                this.defeated();
-                            } else{
-                                this.success();
-                            }
-                        }
-                        cancelAnimationFrame(this.rid);
-                    }else{
-                        this.rid = requestAnimationFrame(function(){
-                            self.run();
-                        });	
-                    }
-                },
-                defeated: function(){
-                    var self = this;
-                    if (confirm("闯关失败, 是否重新开始?")) {
-                        setTimeout(function(){
-                            self.init();
-                        }, 300)
-                    } else {
-
-                    }
-                },
-                success: function(){
-                    var self = this;
-                    setTimeout(function(){
-                        self.animate(100, function(){
-                            self.init(self.option.level + 1);
-                        });
-                    }, 300);
-                },
-                clear: function () {
-                    this.cxt.clearRect(0, 0, this.option.width, this.option.height);
-                },
-                refresh: function (isAnimate) {
-                    var self = this;
-                    this.clear();
-                    target.run();
-                    target.draw();
-                    each(needles, function(index, item) {
-                        //state小于2时使用needles列表里的渲染, 不小于2时用target的渲染
-                        if (item.option.state < 2) {
-                            if(!isAnimate && target.hitTest(item)){
-                                item.option.rotate = target.option.rotate;
-                                target.mount(item);
-                                if (needles.length === target.adorns.length) {
-                                    self.option.state = 1;
-                                }
-                            } else {
-                                item.run();
-                            }
-                            item.draw();
-                        }
-                    });
-                    if (isAnimate) {
-                        this.option.maskOpacity += 0.01;
-                        this.setMask(this.option.maskOpacity);
-                    }
-                    this.cxt.font="14px bold";
-                    this.cxt.fillStyle = "#fff";
-                    this.cxt.fillText("当前关卡: " , 20, 36);
-                    this.cxt.font="18px bold";
-                    this.cxt.fillStyle = "#ffc107";
-                    this.cxt.fillText(this.option.level + 1 , 90, 38);
-                },
-                setMask: function(num){
-                    num = num || 0;
-                    if(num > 1) {
-                        num = 1;
-                    }
-                    this.cxt.fillStyle = "rgba(0,0,0," + num + ")";
-                    this.cxt.beginPath();
-                    this.cxt.fillRect(0, 0, this.option.width, this.option.height);
-                    this.cxt.fill();
-                    this.cxt.closePath();
-                },
-                runStarsAnimate: function(){
-                    var self = this;
-                    this.cxt.save();
-                    this.cxt.translate(target.option.left, target.option.top);
-                    this.cxt.rotate(this.info[3] * target.option.rotate * Math.PI / 180);
-                    each(stars, function(index, item){
-                        // item.option.left += item.option.speed / 2;
-                        // item.option.top += item.option.speed / 2;
-                        item.option.rotate += item.option.speed;
-                        item.draw();
-                    })
-                    this.cxt.restore();
-                },
-                animate: function(num, callback) {
-                    var self = this;
-                    if (num > 0) {
-                        target.option.speed++;
-                        if(target.option.speed > 43){
-                            target.option.speed = 43;
-                        }
-                        this.refresh(true);
-                        this.rid = requestAnimationFrame(function(){
-                            self.animate(num - 1, callback);
-                        });	
-                    } else {
-                        cancelAnimationFrame(this.rid);
-                        callback &&  callback();
-                    }
-                },
-
-                init: function(level) {
-                    this.option.level = level || this.option.level;
-                    this.die = false;
-                    this.setCurrentInfo();
-                    this.option.state = 0;
-                    this.option.maskOpacity = 0;
-                    reset();
-                    this.run();
-                },
-                setCurrentInfo: function(){
-                    this.info = this.getCurrentInfo();
-                },
-                getCurrentInfo: function(){
-                    return this.option.levelData[this.option.level];
-                }
-            }
-
-            function Star(cxt, option){
-                this.cxt = cxt;
-                this.option = option;
-            }
-            Star.prototype = {
-                constructor: Star,
-                draw: function(){
-                    var self = this;
-                    var rotate = this.option.rotate;
-                    var r = this.option.r;
-                    var R = this.option.R;
-                    var left = this.option.left;
-                    var top = this.option.top;
-                    this.cxt.fillStyle = this.option.color || "#f40";
-                    this.cxt.strokeStyle = this.option.color || "#f40";
-                    this.cxt.beginPath();
-                    each(5, function(index, item){
-                        self.cxt.lineTo(Math.cos((18 + 72 * index - rotate) / 180 * Math.PI) * R + left, - Math.sin((18 + 72 * index - rotate) / 180 * Math.PI) * R + top);
-                        self.cxt.lineTo(Math.cos((54 + 72 * index - rotate) / 180 * Math.PI) * r + left, - Math.sin((54 + 72 * index - rotate) / 180 * Math.PI) * r + top);
-                    });
-                    this.cxt.closePath();
-                    this.cxt.fill();
-                    this.cxt.stroke();
-                }
-            }
-            
-            function Target(cxt, option) {
-                this.cxt = cxt;
-                this.adorns = [];
-                this.activeNum = "";
-                this.option = option;
-            }
-            Target.prototype = {
-                constructor: Target,
-                draw: function () {
-                    var self = this;
-                    this.option.rotate = (this.option.rotate + this.option.speed) % 360
-                    this.cxt.save();
-                    this.cxt.translate(this.option.left, this.option.top);this.cxt.rotate(scene.info[3] * this.option.rotate * Math.PI / 180);
-                    this.cxt.fillStyle = this.option.color || "#f40";
-                    this.cxt.beginPath();
-                    this.cxt.arc(0, 0, this.option.r, 0, Math.PI*2, true);
-                    this.cxt.closePath();
-                    this.cxt.fill();
-                    this.cxt.restore();
-                    if(this.activeNum !== ""){
-                        this.cxt.font="24px bold";
-                        this.cxt.fillStyle = "#fff";
-                        this.cxt.fillText(this.activeNum, this.option.left - 8, this.option.top + 8);
-                    }
-                    each(this.adorns, function(index, item) {
-                        if(item.option.state === 1){
-                            item.option.state = 2;
+        }
+        Scene.prototype = {
+            constructor: Scene,
+            resize: function(width, height){
+                var self = this;
+                if(width && height) {
+                    this.option.width = width;
+                    this.option.height = height;
+                    this.el.setAttribute("width", width || this.option.width || this.defaultOption.width);
+                    this.el.setAttribute("height", height || this.option.height || this.defaultOption.height);
+                    target.option.left = this.option.width * .5;
+                    target.option.top = this.option.height * .25;
+                    each(needles, function(index, item){
+                        if(item.option.type === 0 || item.option.state > 1) {
                             item.option.left = 0;
-                            item.option.top = item.option.height + self.option.r + item.option.speed * 3 + 1;
+                            item.option.top = item.option.height + target.option.r + item.option.speed * 3 + 1;
+                        } else {
+                            item.option.left = self.option.width * .5;
+                            item.option.top = self.option.height * .8;
                         }
-                        self.cxt.save();
-                        self.cxt.translate(self.option.left, self.option.top);
-                        self.cxt.rotate(scene.info[3] * (self.option.rotate - item.option.rotate) * Math.PI / 180);
+                    });
+                    this.saveState();
+                }
+            },
+            creatCanvas: function(el){
+                var canvas = el.getElementsByTagName("canvas");
+                if(canvas.length){
+                    return canvas[0];
+                } else {
+                    canvas = document.createElement("canvas");
+                    canvas.setAttribute("width", this.option.width || this.defaultOption.width);
+                    canvas.setAttribute("height", this.option.height || this.defaultOption.height);
+                    el.appendChild(canvas);
+                    return canvas;
+                }
+            },
+            run: function (){
+                var self = this;
+                this.refresh && this.refresh();
+                if(this.option.state > 0){
+                    if(this.option.state === 1){
+                        this.option.state = 2;
+                        if(this.die){
+                            this.defeated();
+                        } else{
+                            this.success();
+                        }
+                        
+                    }
+                    cancelAnimationFrame(this.rid);
+                }else{
+                    this.rid = requestAnimationFrame(function(){
+                        self.run();
+                    });	
+                }
+            },
+            saveState: function(){
+                localStorage.setItem("needle_width", this.option.width);
+                localStorage.setItem("needle_height", this.option.height);
+                localStorage.setItem("needle_level", this.option.level);
+            },
+            defeated: function(){
+                var self = this;
+                if (confirm("闯关失败, 是否重玩当前关卡? 点击取消将返回关卡1")) {
+                    setTimeout(function(){
+                        self.init();
+                    }, 300);
+                } else {
+                    setTimeout(function(){
+                        self.option.level = 0;
+                        self.init();
+                    }, 300);
+                }
+            },
+            success: function(){
+                var self = this;
+                setTimeout(function(){
+                    self.animate(100, function(){
+                        self.init(self.option.level + 1);
+                    });
+                }, 300);
+            },
+            clear: function () {
+                this.cxt.clearRect(0, 0, this.option.width, this.option.height);
+            },
+            refresh: function (isAnimate) {
+                var self = this;
+                this.clear();
+                target.run();
+                target.draw();
+                each(needles, function(index, item) {
+                    //state小于2时使用needles列表里的渲染, 不小于2时用target的渲染
+                    if (item.option.state < 2) {
+                        if(!isAnimate && target.hitTest(item)){
+                            item.option.rotate = scene.info[2] > 0 ? target.option.rotate : -360 - target.option.rotate;
+                            target.mount(item);
+                            if (needles.length === target.adorns.length) {
+                                self.option.state = 1;
+                            }
+                        } else {
+                            item.run();
+                        }
                         item.draw();
-                        self.cxt.restore();
-                    });
-                },
-                mount: function(needle){
-                    this.adorns.push(needle);
-                    this.activeNum = needle.option.num;
-                    this.hitAdorn();
-                },
-                hitTest: function(needle) {
-                    var r = this.option.r;
-                    var left = this.option.left;
-                    var top = this.option.top;
-                    return needle.option.top - this.option.r  < top + r + needle.option.speed * 4
-                },
-                hitAdorn: function(){
-                    var self = this;
-                    var num = -13;
-                    var ary = this.adorns.map(function(item){
-                        return item.option.rotate;
-                    }).sort(function(a,b){return a-b});
-                    each(ary, function(index, item){
-                        num = Math.abs(item - num);
-                        if(num < 12 || num > 348){
-                            scene.option.state = 1;
-                            scene.die = true;
-                        }
-                        num = item;
-                    });
-                    if(Math.abs(ary[0] - ary[ary.length-1]) > 348){
+                    }
+                });
+                if (isAnimate) {
+                    this.option.maskOpacity += 0.01;
+                    this.setMask(this.option.maskOpacity);
+                }
+                this.cxt.font="14px bold";
+                this.cxt.fillStyle = "#fff";
+                this.cxt.fillText("当前关卡: " , 20, 36);
+                this.cxt.font="18px bold";
+                this.cxt.fillStyle = "#ffc107";
+                this.cxt.fillText(this.option.level + 1 , 90, 38);
+            },
+            setMask: function(num){
+                num = num || 0;
+                if(num > 1) {
+                    num = 1;
+                }
+                this.cxt.fillStyle = "rgba(0,0,0," + num + ")";
+                this.cxt.beginPath();
+                this.cxt.fillRect(0, 0, this.option.width, this.option.height);
+                this.cxt.fill();
+                this.cxt.closePath();
+            },
+            runStarsAnimate: function(){
+                var self = this;
+                this.cxt.save();
+                this.cxt.translate(target.option.left, target.option.top);
+                this.cxt.rotate(this.info[3] * target.option.rotate * Math.PI / 180);
+                each(stars, function(index, item){
+                    // item.option.left += item.option.speed / 2;
+                    // item.option.top += item.option.speed / 2;
+                    item.option.rotate += item.option.speed;
+                    item.draw();
+                })
+                this.cxt.restore();
+            },
+            animate: function(num, callback) {
+                var self = this;
+                if (num > 0) {
+                    target.option.speed++;
+                    if(target.option.speed > 43){
+                        target.option.speed = 43;
+                    }
+                    this.refresh(true);
+                    this.rid = requestAnimationFrame(function(){
+                        self.animate(num - 1, callback);
+                    });	
+                } else {
+                    cancelAnimationFrame(this.rid);
+                    callback &&  callback();
+                }
+            },
+
+            init: function(level) {
+                this.option.level = level || this.option.level;
+                this.die = false;
+                this.setCurrentInfo();
+                this.option.state = 0;
+                this.option.maskOpacity = 0;
+                this.saveState();
+                reset();
+                this.run();
+            },
+            setCurrentInfo: function(){
+                this.info = this.getCurrentInfo();
+            },
+            getCurrentInfo: function(){
+                return this.option.levelData[this.option.level];
+            }
+        }
+
+        function Star(cxt, option){
+            this.cxt = cxt;
+            this.option = option;
+        }
+        Star.prototype = {
+            constructor: Star,
+            draw: function(){
+                var self = this;
+                var rotate = this.option.rotate;
+                var r = this.option.r;
+                var R = this.option.R;
+                var left = this.option.left;
+                var top = this.option.top;
+                this.cxt.fillStyle = this.option.color || "#f40";
+                this.cxt.strokeStyle = this.option.color || "#f40";
+                this.cxt.beginPath();
+                each(5, function(index, item){
+                    self.cxt.lineTo(Math.cos((18 + 72 * index - rotate) / 180 * Math.PI) * R + left, - Math.sin((18 + 72 * index - rotate) / 180 * Math.PI) * R + top);
+                    self.cxt.lineTo(Math.cos((54 + 72 * index - rotate) / 180 * Math.PI) * r + left, - Math.sin((54 + 72 * index - rotate) / 180 * Math.PI) * r + top);
+                });
+                this.cxt.closePath();
+                this.cxt.fill();
+                this.cxt.stroke();
+            }
+        }
+        
+        function Target(cxt, option) {
+            this.cxt = cxt;
+            this.adorns = [];
+            this.activeNum = "";
+            this.option = option;
+        }
+        Target.prototype = {
+            constructor: Target,
+            draw: function () {
+                var self = this;
+                this.option.rotate = (this.option.rotate + scene.info[2] * (this.option.speed + scene.info[3])) % 360;
+                this.cxt.save();
+                this.cxt.translate(this.option.left, this.option.top);
+                this.cxt.rotate(this.option.rotate * Math.PI / 180);
+                this.cxt.fillStyle = this.option.color || "#f40";
+                this.cxt.beginPath();
+                this.cxt.arc(0, 0, this.option.r, 0, Math.PI*2, true);
+                this.cxt.closePath();
+                this.cxt.fill();
+                this.cxt.restore();
+                if(this.activeNum !== ""){
+                    this.cxt.font="24px bold";
+                    this.cxt.fillStyle = "#fff";
+                    this.cxt.fillText(this.activeNum, this.option.left - 8, this.option.top + 8);
+                }
+                each(this.adorns, function(index, item) {
+                    if(item.option.state === 1){
+                        item.option.state = 2;
+                        item.option.left = 0;
+                        item.option.top = item.option.height + self.option.r + item.option.speed * 3 + 1;
+                    }
+                    self.cxt.save();
+                    self.cxt.translate(self.option.left, self.option.top);
+                    self.cxt.rotate((self.option.rotate - scene.info[2] * (item.option.rotate + scene.info[3])) * Math.PI / 180);
+                    item.draw();
+                    self.cxt.restore();
+                });
+            },
+            mount: function(needle){
+                this.adorns.push(needle);
+                this.activeNum = needle.option.num;
+                this.hitAdorn();
+            },
+            hitTest: function(needle) {
+                var r = this.option.r;
+                var left = this.option.left;
+                var top = this.option.top;
+                return needle.option.top - this.option.r  < top + r + needle.option.speed * 4
+            },
+            hitAdorn: function(){
+                var self = this;
+                var num = -13;
+                var ary = this.adorns.map(function(item){
+                    return item.option.rotate;
+                }).sort(function(a,b){return a-b});
+                each(ary, function(index, item){
+                    num = Math.abs(item - num);
+                    if(num < 12 || num > 348){
                         scene.option.state = 1;
                         scene.die = true;
                     }
-                },
-                run: function(){
+                    num = item;
+                });
+                if(Math.abs(ary[0] - ary[ary.length-1]) > 348){
+                    scene.option.state = 1;
+                    scene.die = true;
+                }
+            },
+            run: function(){
 
+            }
+        }
+        
+        function Needle(cxt, option) {
+            this.cxt = cxt;
+            this.option = option;
+        }
+        Needle.prototype = {
+            constructor: Needle,
+            draw: function () {
+                this.cxt.fillStyle = this.option.color || "#f40";
+                this.cxt.strokeStyle = "rgba(0,0,0,0)";
+                this.cxt.beginPath();
+                this.option.state > 0 && this.cxt.fillRect(this.option.left-1,this.option.top- this.option.r - this.option.height,this.option.width, this.option.height)
+                this.cxt.arc(this.option.left, this.option.top, this.option.r, 0, Math.PI*2, true);
+                this.cxt.closePath();
+                this.cxt.fill();
+                this.cxt.stroke();
+                this.cxt.font="12px bold";
+                this.cxt.fillStyle = this.option.textColor || "#fff";
+                this.cxt.fillText(this.option.num, this.option.left - 4, this.option.top + 4);
+            },
+            hitTest: function(x,y) {
+                var r = this.option.r;
+                var left = this.option.left;
+                var top = this.option.top;
+                return x >= left - r && x <= left + r && y >= top - r && y <= top + r
+            },
+            click: function() {
+                this.option.state = 1;
+            },
+            run: function(){
+                if(this.option.state === 1){
+                    this.option.top -= this.option.speed;
                 }
             }
-            
-            function Needle(cxt, option) {
-                this.cxt = cxt;
-                this.option = option;
-            }
-            Needle.prototype = {
-                constructor: Needle,
-                draw: function () {
-                    this.cxt.fillStyle = this.option.color || "#f40";
-                    this.cxt.strokeStyle = "rgba(0,0,0,0)";
-                    this.cxt.beginPath();
-                    this.option.state > 0 && this.cxt.fillRect(this.option.left-1,this.option.top- this.option.r - this.option.height,this.option.width, this.option.height)
-                    this.cxt.arc(this.option.left, this.option.top, this.option.r, 0, Math.PI*2, true);
-                    this.cxt.closePath();
-                    this.cxt.fill();
-                    this.cxt.stroke();
-                    this.cxt.font="12px bold";
-                    this.cxt.fillStyle = this.option.textColor || "#fff";
-                    this.cxt.fillText(this.option.num, this.option.left - 4, this.option.top + 4);
-                },
-                hitTest: function(x,y) {
-                    var r = this.option.r;
-                    var left = this.option.left;
-                    var top = this.option.top;
-                    return x >= left - r && x <= left + r && y >= top - r && y <= top + r
-                },
-                click: function() {
-                    this.option.state = 1;
-                },
-                run: function(){
-                    if(this.option.state === 1){
-                        this.option.top -= this.option.speed;
-                    }
-                }
-            }
-            
+        }
+        
 
-            var canvas = document.getElementById("canvas");
-            var scene = new Scene(canvas, {
-                width: 750,
-                height: 600,
-                level: 0,
-                // 已挂载的针数 (个)/ 剩余针数 (个)/ 旋转方向 (-1逆时针,1顺时针) / 旋转速度 (deg)
-                levelData: [
-                    [3, 6, 1, 1],
-                    [4, 6, 1, 1],
-                    [5, 6, 1, 1],
-                    [6, 6, 1, 1],
-                    [3, 6, -1, 1],
-                    [4, 6, -1, 1],
-                    [5, 6, -1, 1],
-                    [6, 6, -1, 1],
-                    [3, 6, 1, 2],
-                    [4, 6, 1, 2],
-                    [5, 6, 1, 2],
-                    [6, 6, 1, 2],
-                    [3, 6, -1, 2],
-                    [4, 6, -1, 2],
-                    [5, 6, -1, 2],
-                    [6, 6, -1, 2]
-                ],
-                maskOpacity: 0,
-                colors: ["#F44336","#9C27B0","#2196F3","#00BCD4","#4CAF50","#CDDC39","#FFC107","#FF5722","#abf09a"],
-                state: 0 // 0游戏中 1通过关卡 2通过后 3游戏结束
+        var el = document.getElementById("app");
+        var scene = new Scene(el, {
+            width: localStorage.getItem("needle_width") || 750,
+            height: localStorage.getItem("needle_height") || 600,
+            level: Number(localStorage.getItem("needle_level") || 0),
+            // 已挂载的针数 (个)/ 剩余针数 (个)/ 旋转方向 (-1逆时针,1顺时针) / 旋转速度增量 (deg)
+            levelData: [
+                [3, 6, 1, 0],
+                [4, 6, 1, 0],
+                [5, 6, 1, 0],
+                [6, 6, 1, 0],
+                [3, 6, -1, 0],
+                [4, 6, -1, 0],
+                [5, 6, -1, 0],
+                [6, 6, -1, 0],
+                [3, 6, 1, .2],
+                [4, 6, 1, .2],
+                [5, 6, 1, .2],
+                [6, 6, 1, .2],
+                [3, 6, -1, .2],
+                [4, 6, -1, .2],
+                [5, 6, -1, .2],
+                [6, 6, -1, .2]
+            ],
+            maskOpacity: 0,
+            colors: ["#F44336","#9C27B0","#2196F3","#00BCD4","#4CAF50","#CDDC39","#FFC107","#FF5722","#abf09a"],
+            state: 0 // 0游戏中 1通过关卡 2通过后 3游戏结束
+        });
+        scene.setCurrentInfo();
+        var target;
+        var needles
+        var stars = [];
+        reset();
+        scene.init();
+
+        function reset(){
+            target = new Target(scene.cxt, {
+                color: "#f40",
+                r: 50,
+                speed: 1,
+                rotate: 0,
+                left: scene.option.width * .5,
+                top: scene.option.height * .25,
+                level: 1
             });
-            scene.setCurrentInfo();
-            var target;
-            var needles
-            var stars = [];
-            reset();
-            scene.init();
+            stars = [];
+            each(15, function(index, item){
+                var star = new Star(scene.cxt, {
+                    left: rand(target.option.r *2, target.option.r / 2) * (Math.random() > 0.5 ? 1 : -1),
+                    top: rand(target.option.r *2 , target.option.r / 2) * (Math.random() > 0.5 ? 1 : -1),
+                    r: rand(8, 3),
+                    R: rand(16, 10),
+                    rotate: rand(360),
+                    speed: rand(3, 1),
+                    color: scene.option.colors[rand(scene.option.colors.length)],
+                });
+                stars.push(star);
+            })
+            needles = [];
             
-            function reset(){
-                target = new Target(scene.cxt, {
-                    color: "#f40",
-                    r: 50,
-                    speed: 1,
-                    rotate: 0,
+            each(scene.info[0], function(index, item){
+                var r = 10;
+                var needle = new Needle(scene.cxt, {
+                    color: scene.option.colors[rand(scene.option.colors.length)],
+                    r: r,
+                    width: 2,
+                    height: 50,
                     left: scene.option.width * .5,
-                    top: scene.option.height * .25,
+                    top: target.option.top + target.option.r - 3,
+                    type: 0,
+                    state: 1, //0准备 1发射 2命中 3碰到其它needle
+                    num: "",
+                    rotate: 0,
+                    speed: 3,
                     level: 1
                 });
-                stars = [];
-                each(15, function(index, item){
-                    var star = new Star(scene.cxt, {
-                        left: rand(target.option.r *2, target.option.r / 2) * (Math.random() > 0.5 ? 1 : -1),
-                        top: rand(target.option.r *2 , target.option.r / 2) * (Math.random() > 0.5 ? 1 : -1),
-                        r: rand(8, 3),
-                        R: rand(16, 10),
-                        rotate: rand(360),
-                        speed: rand(3, 1),
-                        color: scene.option.colors[rand(scene.option.colors.length)],
-                    });
-                    stars.push(star);
-                })
-                needles = [];
-                
-                each(scene.info[0], function(index, item){
-                    var r = 10;
-                    var needle = new Needle(scene.cxt, {
-                        color: scene.option.colors[rand(scene.option.colors.length)],
-                        r: r,
-                        width: 2,
-                        height: 50,
-                        left: scene.option.width * .5,
-                        top: target.option.top + target.option.r - 3,
-                        type: 0,
-                        state: 1, //0准备 1发射 2命中 3碰到其它needle
-                        num: "",
-                        rotate: 0,
-                        speed: 3,
-                        level: 1
-                    });
-                    needles.push(needle);
-                    needle.option.rotate = 360 / scene.info[0] * index;
-                    target.mount(needle);
-                });
-                
-                each(scene.info[1], function(index, item){
-                    var r = 10;
-                    var needle = new Needle(scene.cxt, {
-                        color: scene.option.colors[rand(scene.option.colors.length)],
-                        r: r,
-                        width: 2,
-                        height: 50,
-                        left: scene.option.width * .5,
-                        top: scene.option.height * .8,
-                        type: 0,
-                        state: 0, //0准备 1发射 2命中 3碰到其它needle
-                        num: index + 1,
-                        rotate: 0,
-                        speed: 3,
-                        level: 1
-                    });
-                    needles.push(needle);
-                });
-            }
-            
-            scene.el.addEventListener("click", function(e) {
-                e = window.event || e;
-                var obj = null;
-                var flag = false;
-                each(needles, function(index, item) {
-                    if(!flag){
-                        flag = item.hitTest(e.offsetX, e.offsetY);
-                        flag && (obj = item)
-                    }else if(item.option.state === 0){
-                        obj = item;
-                    }
-                });
-                obj && obj.click();
+                needles.push(needle);
+                needle.option.rotate = 360 / scene.info[0] * index * scene.info[2];
+                target.mount(needle);
             });
             
-            function rand(max, min){
-                min = min || 0;
-                return ~~(Math.random() * (max - min)) + min;
-            }
-
-            function each(items, fn){
-                var i;
-                if (items instanceof Array) {
-                    for (i = 0; i < items.length; i++) {
-                        fn && fn.call(items, i, items[i], items);
-                    }
-                } else if (items instanceof Object) {
-                    for(i in items) {
-                        fn && items.hasOwnProperty(i) && fn.call(items, i, items[i], items);
-                    }
-                } else if( typeof items === "number") {
-                    for (i = 0; i < items; i++) {
-                        fn && fn.call(null, i, i, items);
-                    }
+            each(scene.info[1], function(index, item){
+                var r = 10;
+                var needle = new Needle(scene.cxt, {
+                    color: scene.option.colors[rand(scene.option.colors.length)],
+                    r: r,
+                    width: 2,
+                    height: 50,
+                    left: scene.option.width * .5,
+                    top: scene.option.height * .8,
+                    type: 1,
+                    state: 0, //0准备 1发射 2命中 3碰到其它needle
+                    num: index + 1,
+                    rotate: 0,
+                    speed: 3,
+                    level: 1
+                });
+                needles.push(needle);
+            });
+        }
+        
+        scene.el.addEventListener("click", function(e) {
+            e = window.event || e;
+            var obj = null;
+            var flag = false;
+            each(needles, function(index, item) {
+                if(!flag){
+                    flag = item.hitTest(e.offsetX, e.offsetY);
+                    flag && (obj = item)
+                }else if(item.option.state === 0){
+                    obj = item;
                 }
-                
+            });
+            obj && obj.click();
+        });
+        
+        function rand(max, min){
+            min = min || 0;
+            return ~~(Math.random() * (max - min)) + min;
+        }
+
+        function each(items, fn){
+            var i;
+            if (items instanceof Array) {
+                for (i = 0; i < items.length; i++) {
+                    fn && fn.call(items, i, items[i], items);
+                }
+            } else if (items instanceof Object) {
+                for(i in items) {
+                    fn && items.hasOwnProperty(i) && fn.call(items, i, items[i], items);
+                }
+            } else if( typeof items === "number") {
+                for (i = 0; i < items; i++) {
+                    fn && fn.call(null, i, i, items);
+                }
             }
-        </script>
-    </div>
+            
+        }
+    </script>
 </body>
 </html>
