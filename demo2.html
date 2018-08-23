@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>贪吃蛇</title>
+    <style>
+        *{
+            padding: 0;
+            margin: 0;
+        }
+        #app canvas{
+            background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+    </div>
+    <script>
+        function Snake(cxt, option) {
+            this.cxt = cxt;
+            this.option = option;
+        }
+        Snake.prototype = {
+            constructor: Snake,
+            run: function () {
+                var first = this.option.paths[0];
+                var last = this.option.paths.pop();
+                var num = this.option.direction < 2 ? -1 : 1;
+                this.option.paths.unshift([
+                    first[0] + (this.option.direction % 2 === 0 ? 1 : 0) * num * this.option.space,
+                    first[1] + (this.option.direction % 2 === 0 ? 0 : 1) * num * this.option.space
+                ]);
+                if(this.hitFeed(scene.option.feed)){
+                    this.eat(scene.option.feed);
+                    scene.option.feed = creatFeed();
+                }
+                this.draw();
+                if(this.hitTest()){
+                  scene.die = true;  
+                }
+            },
+            eat: function(feed) {
+                this.option.paths.unshift([
+                    feed.option.left, feed.option.top
+                ]);
+            },
+            draw: function () {
+                var self = this;
+                this.cxt.fillStyle = this.option.color || "#fff";
+                each(this.option.paths || [], function(index, item){
+                    self.cxt.beginPath();
+                    self.cxt.arc(item[0], item[1], self.option.r, 0, Math.PI*2, true);
+                    self.cxt.fill();
+                    self.cxt.closePath();
+                });
+            },
+            hitFeed: function(feed) {
+                var first = this.option.paths[0];
+                var num = this.option.direction < 2 ? -1 : 1;
+                var next = [];
+                if(first){
+                    if(this.option.direction % 2 === 0){
+                        next = [first[0] + num * this.option.space, first[1]];
+                    } else {
+                        next = [first[0], first[1] + num * this.option.space];
+                    }
+                }
+                return next[0] === feed.option.left && next[1] === feed.option.top;
+            },
+            hitTest: function() {
+                return this.option.left < 0 || this.option.left > scene.option.width || this.option.top < 0 || this.option.top > scene.option.height;
+            }
+        }
+        function Feed(cxt, option) {
+            this.cxt = cxt;
+            this.option = option;
+        }
+        Feed.prototype = {
+            constructor: Feed,
+            draw: function () {
+                this.cxt.beginPath();
+                this.cxt.fillStyle = this.option.color || "#fff";
+                this.cxt.arc(this.option.left, this.option.top, this.option.r, 0, Math.PI*2, true);
+                this.cxt.fill();
+                this.cxt.closePath();
+            }
+        }
+        function Scene(el, option) {
+            if (el) {
+                this.rid = 0;
+                this.die = false;
+                this.option = option || {};
+                this.defaultOption = {
+                    width: 360,
+                    height: 600
+                }
+                this.el = this.creatCanvas(el);
+                this.cxt = this.el.getContext("2d");
+            }
+        }
+        Scene.prototype = {
+            constructor: Scene,
+            creatCanvas: function(el){
+                var canvas = el.getElementsByTagName("canvas");
+                if(canvas.length){
+                    return canvas[0];
+                } else {
+                    canvas = document.createElement("canvas");
+                    canvas.setAttribute("width", this.option.width || this.defaultOption.width);
+                    canvas.setAttribute("height", this.option.height || this.defaultOption.height);
+                    el.appendChild(canvas);
+                    return canvas;
+                }
+            },
+            init: function(){
+                this.option.feed = creatFeed();
+                this.draw();
+                this.run();
+            },
+            run: function (){
+                var self = this;
+                this.refresh && this.refresh();
+                if(this.option.state > 0 || this.die){
+                    // cancelAnimationFrame(this.rid);
+                    clearTimeout(this.option.timeid);
+                }else{
+                    // this.rid = requestAnimationFrame(function(){
+                        this.option.timeid = setTimeout(function(){
+                            self.run();
+                        }, this.option.time || 500);
+                    // });	
+                }
+            },
+            draw: function() {
+                var self = this;
+                this.cxt.beginPath();
+                this.cxt.strokeStyle = this.option.strokeStyle || '#222';
+                each(~~(self.option.width / self.option.space), function(index, left){
+                    each(~~(self.option.height / self.option.space), function(index2, top){
+                        self.cxt.strokeRect(left * self.option.space, top * self.option.space, self.option.space, self.option.space);
+                    });
+                });
+                this.cxt.stroke();
+                this.cxt.closePath();
+            },
+            refresh: function(){
+                this.cxt.clearRect(0,0,this.option.width,this.option.height);
+                this.draw();
+                snake && snake.run();
+                this.option.feed.draw();
+            }
+        }
+        var el = document.getElementById("app");    
+        var scene = new Scene(el, {
+            width: localStorage.getItem("snake_width") || 640,
+            height: localStorage.getItem("snake_height") || 640,
+            level: Number(localStorage.getItem("snake_level") || 0),
+            levelData: [
+                [3, 6, 1, 0],
+            ],
+            maskOpacity: 0,
+            colors: ["#505050", "#333", "#505050","#F44336","#9C27B0","#2196F3","#00BCD4","#4CAF50","#CDDC39","#FFC107","#FF5722","#abf09a"],
+            state: 0,
+            r: 6,
+            speed: 4,
+            space: 20,
+            direction: 0,
+            time: 500
+        });
+
+        var snake = new Snake(scene.cxt, {
+            speed: scene.option.speed,
+            r: scene.option.r,
+            direction: scene.option.direction,
+            space: scene.option.space, // 2 * r + speed
+            color: scene.option.colors[5],
+            paths: [
+                [(~~(scene.option.width / scene.option.space / 2) - .5) * scene.option.space, (~~(scene.option.height / scene.option.space / 2)  - .5) * scene.option.space]
+            ]
+        });
+
+
+        scene.init();
+
+        function creatFeed(){
+            var feed = new Feed(scene.cxt, {
+                r: scene.option.r,
+                left: (rand(~~(scene.option.width / snake.option.space) - 1, 1) - .5) * snake.option.space,
+                top: (rand(~~(scene.option.height / snake.option.space) - 1, 1) - .5) * snake.option.space
+            });
+            return feed;
+        }
+        document.addEventListener("keyup", function(e) {
+            e = window.event || e;
+            var obj = null;
+            var flag = false;
+            scene.option.direction = snake.option.direction = e.keyCode - 37;
+        });
+        
+        function rand(max, min){
+            min = min || 0;
+            return ~~(Math.random() * (max - min)) + min;
+        }
+
+        function each(items, fn){
+            var i;
+            if (items instanceof Array) {
+                for (i = 0; i < items.length; i++) {
+                    fn && fn.call(items, i, items[i], items);
+                }
+            } else if (items instanceof Object) {
+                for(i in items) {
+                    fn && items.hasOwnProperty(i) && fn.call(items, i, items[i], items);
+                }
+            } else if( typeof items === "number") {
+                for (i = 0; i < items; i++) {
+                    fn && fn.call(null, i, i, items);
+                }
+            }
+            
+        }
+    </script>
+</body>
+</html>
