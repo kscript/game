@@ -1,6 +1,9 @@
 #### 游戏列表
 
-见缝插针: https://kscript.github.io/game/demo.html
+见缝插针: https://kscript.github.io/game/demo1.html
+
+
+贪吃蛇: https://kscript.github.io/game/demo2.html (改进中...)
 
 ---
 
@@ -10,4 +13,4 @@
 
 扫雷: https://kscript.github.io/coding/game/扫雷/index.html
 
-植物大战僵尸: https://kscript.github.io/coding/game/植物大战僵尸/index.html
+植物大战僵尸: https://kscript.github.io/coding/game/植物大战僵尸/index.html (未完)
