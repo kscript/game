@@ -27,20 +27,36 @@
             constructor: Snake,
             run: function () {
                 var first = this.option.paths[0];
-                var last = this.option.paths.pop();
+                var last = this.option.paths.slice(-1)[0]; //this.option.paths.pop();
                 var num = this.option.direction < 2 ? -1 : 1;
-                this.option.paths.unshift([
-                    first[0] + (this.option.direction % 2 === 0 ? 1 : 0) * num * this.option.space,
-                    first[1] + (this.option.direction % 2 === 0 ? 0 : 1) * num * this.option.space
-                ]);
+                var type = 0;
+                
                 if(this.hitFeed(scene.option.feed)){
                     this.eat(scene.option.feed);
                     scene.option.feed = creatFeed();
+                } else {
+                    this.option.paths.unshift([
+                        first[0] + (this.option.direction % 2 === 0 ? 1 : 0) * num * this.option.space,
+                        first[1] + (this.option.direction % 2 === 0 ? 0 : 1) * num * this.option.space
+                    ]);
+                    this.option.paths.pop();
                 }
-                this.draw();
                 if(this.hitTest()){
-                  scene.die = true;  
+                    type = 1;
                 }
+                if(this.hitSelf()){
+                    type = 2;
+                }
+                type !== 1 && this.draw();
+                if(type > 0){
+                  scene.die = true;
+                  scene.defeated(type);
+                  return false;
+                } else if(this.option.paths.length >= scene.info[1]){
+                    scene.success();
+                    return false;
+                }
+                return true;
             },
             eat: function(feed) {
                 this.option.paths.unshift([
@@ -57,6 +73,17 @@
                     self.cxt.closePath();
                 });
             },
+            hitSelf: function(){
+                var self = this;
+                var first = this.option.paths[0];
+                var num = 0;
+                each(this.option.paths, function(index, item){
+                    if(item[0] === first[0] && item[1] === first[1]){
+                        num++;
+                    }
+                });
+                return num > 1;
+            },
             hitFeed: function(feed) {
                 var first = this.option.paths[0];
                 var num = this.option.direction < 2 ? -1 : 1;
@@ -71,7 +98,8 @@
                 return next[0] === feed.option.left && next[1] === feed.option.top;
             },
             hitTest: function() {
-                return this.option.left < 0 || this.option.left > scene.option.width || this.option.top < 0 || this.option.top > scene.option.height;
+                var first = this.option.paths[0];
+                return first[0] < 0 || first[0] > scene.option.width || first[1] < 0 || first[1] > scene.option.height;
             }
         }
         function Feed(cxt, option) {
@@ -105,23 +133,52 @@
             constructor: Scene,
             creatCanvas: function(el){
                 var canvas = el.getElementsByTagName("canvas");
+                var panel = this.option.panel || {};
+                var width = panel.width || 0;
+                var height = panel.height || 0;
                 if(canvas.length){
                     return canvas[0];
                 } else {
                     canvas = document.createElement("canvas");
-                    canvas.setAttribute("width", this.option.width || this.defaultOption.width);
-                    canvas.setAttribute("height", this.option.height || this.defaultOption.height);
+                    canvas.setAttribute("width", (this.option.width || this.defaultOption.width) + width);
+                    canvas.setAttribute("height", (this.option.height || this.defaultOption.height) + height);
                     el.appendChild(canvas);
                     return canvas;
                 }
             },
             init: function(){
                 this.option.feed = creatFeed();
+                this.setCurrentInfo();
                 this.draw();
                 this.run();
             },
+            setCurrentInfo: function(){
+                this.info = this.getCurrentInfo();
+            },
+            getCurrentInfo: function(){
+                return this.option.levelData[this.option.level];
+            },
+            defeated: function(){
+                this.pause();
+                alert("游戏失败!");
+                reset();
+            },
+            success: function(){
+                this.pause();
+                localStorage.setItem("snake_level", ++this.option.level);
+                alert("通过关卡!");
+                reset();
+            },
+            pause: function(){
+                this.option.pauseTime = + new Date;
+                clearTimeout(this.option.timeid);
+            },
             run: function (){
                 var self = this;
+                if(this.option.pauseTime>0){
+                    this.option.startTime += new Date - this.option.pauseTime;
+                    this.option.pauseTime = 0;
+                }
                 this.refresh && this.refresh();
                 if(this.option.state > 0 || this.die){
                     // cancelAnimationFrame(this.rid);
@@ -130,9 +187,165 @@
                     // this.rid = requestAnimationFrame(function(){
                         this.option.timeid = setTimeout(function(){
                             self.run();
-                        }, this.option.time || 500);
-                    // });	
+                        }, (this.option.time || 500) * this.info[0]);
+                    // });
                 }
+            },
+            drawPanel: function(texts){
+                var color = this.option.textStyle || "#fff";
+                var cxt = this.cxt;
+                var conf = {
+                    x: this.option.width + 20,
+                    y: 80,
+                    maxWidth: this.option.panel.width || 100,
+                    left: 0,
+                    top: 0,
+                    lineHeight: 28
+                }
+                var time = ~~((new Date - this.option.startTime) / 1000);
+                var my_gradient=cxt.createLinearGradient(conf.x, conf.y - 20, conf.x ,conf.y + 266);
+                my_gradient.addColorStop(0,"yellow");
+                my_gradient.addColorStop(0.1,"red");
+                my_gradient.addColorStop(0.2,"yellow");
+                my_gradient.addColorStop(0.3,"red");
+                my_gradient.addColorStop(0.4,"yellow");
+                my_gradient.addColorStop(0.5,"red");
+                my_gradient.addColorStop(0.6,"yellow");
+                my_gradient.addColorStop(0.7,"red");
+                my_gradient.addColorStop(0.8,"yellow");
+                my_gradient.addColorStop(0.9,"red");
+                my_gradient.addColorStop(1,"yellow");
+                texts = [
+                    {
+                        font: "20px Arial",
+                        color: my_gradient, //"#f40",
+                        text: "贪吃蛇",
+                        newLine: false,
+                        left: 10, 
+                        top: 0,
+                        align: 'center'
+                    },
+                    {},
+                    {
+                        font: "12px Arial",
+                        color: color,
+                        text: "游戏时间: ",
+                        newLine: false,
+                        left: 0, 
+                        top: 0
+                    },
+                    {
+                        font: "14px Arial",
+                        color: my_gradient,
+                        text: [~~(time / 3600), ~~(time % 3600 / 60), time % 60].map(function(n){return n < 10 ? "0" + n : n}).join(":"),
+                        newLine: false,
+                        left: 0, 
+                        top: 0
+                    },
+                    {},
+                    {
+                        font: "12px Arial",
+                        color: color,
+                        text: "当前关卡: ",
+                        newLine: false,
+                        left: 0, 
+                        top: 0
+                    },
+                    {
+                        font: "15px bold",
+                        color: my_gradient,
+                        text: this.option.level + 1,
+                        newLine: false,
+                        left: 5,
+                        top: 2
+                    },
+                    {},
+                    {
+                        font: "12px Arial",
+                        color: color,
+                        text: "关卡目标: ",
+                        newLine: false,
+                        left: 0, 
+                        top: 0
+                    },
+                    {
+                        font: "14px Arial",
+                        color: my_gradient,
+                        text: "成长到" + this.info[1] + "格",
+                        newLine: false,
+                        left: 0, 
+                        top: 0
+                    },
+                    {},
+                    {
+                        font: "12px Arial",
+                        color: color,
+                        text: "当前长度: ",
+                        newLine: false,
+                        left: 0, 
+                        top: 0
+                    },
+                    {
+                        font: "14px Arial",
+                        color: my_gradient,
+                        text: snake.option.paths.length,
+                        newLine: false,
+                        left: 0, 
+                        top: 0
+                    },
+                    {},
+                    {
+                        font: "12px Arial",
+                        color: color,
+                        text: "移动速度: ",
+                        newLine: false,
+                        left: 0, 
+                        top: 0
+                    },
+                    {
+                        font: "14px Arial",
+                        color: my_gradient,
+                        text: this.option.time * this.info[0] + "ms/格",
+                        newLine: false,
+                        left: 0, 
+                        top: 0
+                    }
+                ];
+                each(texts, function(index, item){
+                    if(item.font){
+                        cxt.textAlign = item.align || "left";
+                        cxt.font= item.font;
+                        cxt.fillStyle = item.color;
+                        var count = Math.ceil(cxt.measureText(item.text).width);
+                        if(conf.left + count > conf.maxWidth){
+                            conf.left = 0;
+                            conf.top += conf.lineHeight;
+                            if(item.newLine){
+                                
+                            } else{
+                                
+                            }
+                                
+                            if(item.align === "center"){
+                                cxt.fillText(item.text, conf.x + conf.maxWidth / 2, conf.y + conf.top + item.top);
+                            }else{
+                                cxt.fillText(item.text, conf.x + conf.left + item.left, conf.y + conf.top + item.top);
+                            }
+                        } else {
+                            if(item.align === "center"){
+                                cxt.fillText(item.text, conf.x + conf.maxWidth / 2, conf.y + conf.top + item.top);
+                            }else{
+                                cxt.fillText(item.text, conf.x + conf.left + item.left, conf.y + conf.top + item.top);
+                            }
+                            conf.left += count;
+                        }
+                    } else {
+                        conf.left = 0;
+                        conf.top += conf.lineHeight;
+                    }
+                });
+
+                
             },
             draw: function() {
                 var self = this;
@@ -147,43 +360,74 @@
                 this.cxt.closePath();
             },
             refresh: function(){
-                this.cxt.clearRect(0,0,this.option.width,this.option.height);
+                var panel = this.option.panel || {};
+                var width = panel.width || 0;
+                var height = panel.height || 0;
+                this.cxt.clearRect(0,0,this.option.width + width,this.option.height + height);
                 this.draw();
-                snake && snake.run();
-                this.option.feed.draw();
+                this.drawPanel();
+                snake && snake.run() && this.option.feed.draw();
             }
         }
-        var el = document.getElementById("app");    
-        var scene = new Scene(el, {
-            width: localStorage.getItem("snake_width") || 640,
-            height: localStorage.getItem("snake_height") || 640,
-            level: Number(localStorage.getItem("snake_level") || 0),
-            levelData: [
-                [3, 6, 1, 0],
-            ],
-            maskOpacity: 0,
-            colors: ["#505050", "#333", "#505050","#F44336","#9C27B0","#2196F3","#00BCD4","#4CAF50","#CDDC39","#FFC107","#FF5722","#abf09a"],
-            state: 0,
-            r: 6,
-            speed: 4,
-            space: 20,
-            direction: 0,
-            time: 500
+        var el = document.getElementById("app");
+        var scene, snake;
+
+        reset();
+        document.addEventListener("keyup", function(e) {
+            e = window.event || e;
+            var obj = null;
+            var flag = false;
+            var direction = scene.option.direction;
+            scene.option.direction = snake.option.direction = e.keyCode - 37;
+            if(Math.abs(direction - scene.option.direction) === 2){
+                snake.option.paths.reverse();
+            }
+            // snake.hitFeed(scene.option.feed);
+            scene.refresh();
         });
-
-        var snake = new Snake(scene.cxt, {
-            speed: scene.option.speed,
-            r: scene.option.r,
-            direction: scene.option.direction,
-            space: scene.option.space, // 2 * r + speed
-            color: scene.option.colors[5],
-            paths: [
-                [(~~(scene.option.width / scene.option.space / 2) - .5) * scene.option.space, (~~(scene.option.height / scene.option.space / 2)  - .5) * scene.option.space]
-            ]
-        });
-
-
-        scene.init();
+        
+        function reset(){
+            scene = new Scene(el, {
+                width: localStorage.getItem("snake_width") || 640,
+                height: localStorage.getItem("snake_height") || 640,
+                level: Number(localStorage.getItem("snake_level") || 0),
+                levelData: [ // 刷新间隔, 最大长度
+                    [1, 10],
+                    [.9, 15],
+                    [.8, 20],
+                    [.8, 25],
+                    [.7, 25],
+                    [.7, 30],
+                ],
+                maskOpacity: 0,
+                colors: ["#505050", "#333", "#505050","#F44336","#9C27B0","#2196F3","#00BCD4","#4CAF50","#CDDC39","#FFC107","#FF5722","#abf09a"],
+                state: 0,
+                r: 6,
+                speed: 4,
+                space: 20,
+                direction: 0,
+                time: 500,
+                startTime: +new Date,
+                startTime2: +new Date,
+                pauseTime: 0,
+                panel: {
+                    width: 200,
+                    message: ""
+                }
+            });
+            snake = new Snake(scene.cxt, {
+                speed: scene.option.speed,
+                r: scene.option.r,
+                direction: scene.option.direction,
+                space: scene.option.space,
+                color: scene.option.colors[5],
+                paths: [
+                    [(~~(scene.option.width / scene.option.space / 2) - .5) * scene.option.space, (~~(scene.option.height / scene.option.space / 2)  - .5) * scene.option.space]
+                ]
+            });
+            
+            scene.init();
+        }
 
         function creatFeed(){
             var feed = new Feed(scene.cxt, {
@@ -193,12 +437,6 @@
             });
             return feed;
         }
-        document.addEventListener("keyup", function(e) {
-            e = window.event || e;
-            var obj = null;
-            var flag = false;
-            scene.option.direction = snake.option.direction = e.keyCode - 37;
-        });
         
         function rand(max, min){
             min = min || 0;
