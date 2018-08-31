@@ -25,7 +25,7 @@
         }
         Snake.prototype = {
             constructor: Snake,
-            run: function () {
+            run: function (cb) {
                 var first = this.option.paths[0];
                 var last = this.option.paths.slice(-1)[0]; //this.option.paths.pop();
                 var num = this.option.direction < 2 ? -1 : 1;
@@ -51,12 +51,11 @@
                 if(type > 0){
                   scene.die = true;
                   scene.defeated(type);
-                  return false;
                 } else if(this.option.paths.length >= scene.info[1]){
                     scene.success();
-                    return false;
+                } else {
+                    cb();
                 }
-                return true;
             },
             eat: function(feed) {
                 this.option.paths.unshift([
@@ -159,15 +158,24 @@
                 return this.option.levelData[this.option.level];
             },
             defeated: function(){
+                this.option.state = 1;
+                this.die = true;
                 this.pause();
-                alert("游戏失败!");
-                reset();
+                if(confirm("游戏失败!")){
+                    setTimeout(function(){
+                        reset();
+                    },500);
+                }
             },
             success: function(){
+                this.option.state = 2;
                 this.pause();
                 localStorage.setItem("snake_level", ++this.option.level);
-                alert("通过关卡!");
-                reset();
+                if(confirm("通过关卡!")){
+                    setTimeout(function(){
+                        reset();
+                    },500);
+                }
             },
             pause: function(){
                 this.option.pauseTime = + new Date;
@@ -363,10 +371,13 @@
                 var panel = this.option.panel || {};
                 var width = panel.width || 0;
                 var height = panel.height || 0;
+                var self = this;
                 this.cxt.clearRect(0,0,this.option.width + width,this.option.height + height);
                 this.draw();
                 this.drawPanel();
-                snake && snake.run() && this.option.feed.draw();
+                snake && snake.run(function(){
+                    self.option.feed.draw();
+                });
             }
         }
         var el = document.getElementById("app");
