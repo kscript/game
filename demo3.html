@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>宝石消除</title>
+    <style>
+        *{
+            padding: 0;
+            margin: 0;
+        }
+        #app{
+            text-align: center;
+        }
+        #app canvas{
+            background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+    </div>
+    <script>
+        function Scene(el, option) {
+            if (el) {
+                this.rid = 0;
+                this.die = false;
+                this.option = option || {};
+                this.defaultOption = {
+                    width: 360,
+                    height: 600
+                }
+                this.el = this.creatCanvas(el);
+                this.cxt = this.el.getContext("2d");
+            }
+        }
+        Scene.prototype = {
+            constructor: Scene,
+            creatCanvas: function(el){
+                var canvas = el.getElementsByTagName("canvas");
+                var panel = this.option.panel || {};
+                var width = panel.width || 0;
+                var height = panel.height || 0;
+                if(canvas.length){
+                    return canvas[0];
+                } else {
+                    canvas = document.createElement("canvas");
+                    canvas.setAttribute("width", (this.option.width || this.defaultOption.width) + width);
+                    canvas.setAttribute("height", (this.option.height || this.defaultOption.height) + height);
+                    el.appendChild(canvas);
+                    this.addEvents(canvas);
+                    return canvas;
+                }
+            },
+            addEvents: function(canvas){
+                var self = this;
+                canvas.addEventListener("click", function(e) {
+                    e = window.event || e;
+                    self.click && self.click(e.offsetX || e.x, e.offsetY || e.y);
+                });
+            },
+            click: function(ox, oy){
+                var self = this;
+                var x = ~~((ox - this.option.offsetX) / this.option.size);
+                var y = ~~((oy - this.option.offsetY) / this.option.size);
+                var w = ~~((this.option.width -this.option.offsetX * 2) / this.option.size);
+                var h = ~~((this.option.height -this.option.offsetY * 2) / this.option.size);
+                var res = this.search(x, y, w, h, true);
+                var cols = {};
+                this.option.total += res.length * res.length * 5;
+                res.length && console.log("消除 " + res.length + "个宝石, 获得积分: ", res.length * res.length * 5)
+                res.sort(function(a, b){return a - b});
+                each(res, function(index, num) {
+                    if(!cols[num % w]){
+                        cols[num % w] = [num];
+                    } else{
+                        cols[num % w].push(num);
+                    }
+                    gems[num] && gems[num].over();
+                });
+                each(cols, function(col, nums){
+                    self.moveCol(Number(col), nums, w, h);
+                });
+            },
+            moveRow: function(){
+                console.log(arguments)
+            },
+            moveCol: function(col, nums, w, h){
+                var max = nums.slice(-1)[0];
+                var len = nums.length;
+                var size = this.option.size;
+                var gem = null;
+                var last = ~~(max / w) + 1;
+                var count = 0;
+                var useRow = 0;
+                each(h, function(index, item){
+                    if(gems[w * item + col]){
+                        count++;
+                    }
+                });
+                count === len && this.moveRow.apply(this, arguments);
+                each(last, function(index, num){
+                    var current = w * (last - index - 1) + col;
+                    if(current <= max){
+                        gem = gems[current];
+                        if(gem){
+                            delete gems[current];
+                            if(gem.option.die){
+                            } else {
+                                gems[current + (len - useRow) * w] = gem;
+                                gem.option.y2 = gem.option.y + size * (len - useRow);
+                            }
+                        }
+                    }
+                });
+            },
+            search: function(x, y, w, h, first) {
+                var self = this;
+                var cIndex = x + y * w;
+                var current = gems[cIndex];
+                var type = current ? current.option.type : -1;
+                var indexs = [];
+                var res = [];
+                var next = [];
+                if(gems.length && type >= 0){
+                    y > 0 && indexs.push(cIndex - w);
+                    x > 0 && indexs.push(cIndex - 1);
+                    x < w - 1 && indexs.push(cIndex + 1);
+                    y < h - 1 && indexs.push(cIndex + w);
+                    if(indexs.length){
+                        current.option.open = true;
+                    }
+                    // console.log("和", cIndex, "相邻的宝石:", indexs);
+                    each(indexs, function(index, num){
+                        var gem = gems[num];
+                        if(gem && !gem.option.open && gem.option.type === type){
+                            gem.option.open = true;
+                            res.push(num);
+                            next.push(num);
+                        }
+                    });
+                    if(next.length) {
+                        first && res.unshift(cIndex);
+                        each(next, function(index, num){
+                            var tmp = self.search(num % w, ~~(num / w), w, h, false);
+                            // console.log("以", num, "为原点搜索的结果为:", tmp);
+                            res = res.concat(tmp);
+                        });
+                    }
+                    if(first && !res.length){
+                        current.option.open = false;
+                    }
+                }
+                return res;
+            },
+            run: function (){
+                var self = this;
+                this.refresh && this.refresh();
+                if(this.option.state > 0 || this.die){
+                    cancelAnimationFrame(this.rid);
+                }else{
+                    this.rid = requestAnimationFrame(function(){
+                        self.run();
+                    });
+                }
+            },
+            draw: function() {
+                this.cxt.clearRect(0,0,this.option.width,this.option.height);
+            },
+            refresh: function(){
+                this.draw();
+                each(gems, function(index, item){
+                    item && item.draw();
+                })
+            }
+        }
+        
+        function Gem(cxt, option){
+            this.cxt = cxt;
+            this.option = option;
+        }
+        Gem.prototype = {
+            constructor: Gem,
+            draw: function(){
+                if(this.option.die) return;
+                var cxt = this.cxt;
+                var r = this.option.r;
+                var x = this.option.x + this.option.space;
+                var y = this.option.y + this.option.space;
+                var w = this.option.width;
+                var h = this.option.height;
+                var s = 8;
+                var stroke = true;
+                if(this.option.y < this.option.y2){
+                    this.option.y += 4;
+                    y += 4;
+                }
+
+                cxt.fillStyle = this.option.fillStyle || "#fff";
+                cxt.fillRect(x, y, w, h);
+                // this.roundRect.call(cxt, x, y, w, h, r);
+                // cxt.fill();
+                cxt.fillStyle = 
+                    "rgba(0,0,0,.15)"
+                cxt.fillRect(x + s, y + s, w - s * 2, h - s * 2);
+                // 上
+                cxt.fillStyle = createLinearGradient(cxt, [x, y - h, x, y + h + s], "rgba(255,255,255, .05)", "rgba(255,255,255, .4)", "rgba(255,255,255, .1)");
+                cxt.strokeStyle = "rgba(255,255,255,.4)";
+                cxt.beginPath();
+                cxt.moveTo(x + 1, y);
+                cxt.lineTo(x + s, y + s);
+                cxt.lineTo(x + w - s, y + s);
+                cxt.lineTo(x + w - 1, y);
+                cxt.closePath();
+                cxt.fill();
+                stroke && cxt.stroke();
+                // 右
+                cxt.fillStyle = createLinearGradient(cxt, [x + w - s, y, x + w - s, y + h],"rgba(0, 0, 0, 0)", "rgba(0, 0, 0, .3)", "rgba(0,0,0,.6)");
+                cxt.beginPath();
+                cxt.moveTo(x + w, y);
+                cxt.lineTo(x + w - s, y + s);
+                cxt.lineTo(x + w - s, y + h - s);
+                cxt.lineTo(x + w, y + s + h - s);
+                cxt.closePath();
+                cxt.fill();
+                // 下
+                cxt.fillStyle = createLinearGradient(cxt, [x, y + h - s, x, y + h], "rgba(0, 0, 0, .3)", "rgba(0, 0, 0, .15)", "rgba(255, 255, 255, .2)"); // , this.option.rgba[0]
+                // cxt.strokeStyle = "rgba(255,255,255,.2)";
+                cxt.strokeStyle = "rgba(0,0,0,.2)";
+                cxt.beginPath();
+                cxt.moveTo(x + 1, y + h);
+                cxt.lineTo(x + s, y + h - s);
+                cxt.lineTo(x + w - s, y + h - s);
+                cxt.lineTo(x + w - 1, y + h);
+                cxt.closePath();
+                cxt.fill();
+                stroke && cxt.stroke();
+                // 左
+                cxt.fillStyle = createLinearGradient(cxt, [x, y, x, y + h], "rgba(255,255,255, .3)",  "rgba(0, 0, 0, .3)");
+                cxt.beginPath();
+                cxt.moveTo(x, y);
+                cxt.lineTo(x + s,  y + s);
+                cxt.lineTo(x + s, y + h - s);
+                cxt.lineTo(x, y + h);
+                cxt.closePath();
+                cxt.fill();
+                
+                // cxt.strokeStyle = "rgba(0,0,0,.05)";
+                // cxt.strokeRect(x + s, y + s, w - s * 2, h - s * 2);
+
+            },
+            over: function(){
+                this.option.die = true;
+            },
+            roundRect: function(x, y, w, h, r){
+                var c = this;
+                if(w < r * 2){
+                    r = w / 2;
+                }
+                if(h < r * 2){
+                    r = h / 2;
+                }
+                c.beginPath();
+                c.lineJoin="round";
+                c.moveTo(x + r, y);
+                c.arcTo(x + w, y, x + w, y + h,r);
+                c.arcTo(x + w, y + h, x, y + h,r);
+                c.arcTo(x, y + h, x, y, r);
+                c.arcTo(x, y, x + w, y, r);
+                c.closePath();
+            }
+        }
+        
+        var el = document.getElementById("app");
+        var scene, gems = [];
+
+        reset();
+        
+        function reset(){
+            var gem = null;
+            var grd = null;
+            var num = 0;
+            var opa0 = .3;
+            var opa1 = 1;
+            var opa2 = .8;
+            scene = new Scene(el, {
+                width: localStorage.getItem("snake_width") || 660,
+                height: localStorage.getItem("snake_height") || 660,
+                level: Number(localStorage.getItem("snake_level") || 0),
+                offsetX: 10,
+                offsetY: 10,
+                total: 0,
+                colors: [
+                    "rgba(33, 150, 243, " + opa1 + ")", // 蓝
+                    "rgba(255, 0, 0, " + opa1 + ")", //红
+                    "rgba(216, 46, 245, " + opa1 + ")", //紫
+                    // "rgba(255, 233, 40, " + opa1 + ")", //黄
+                    // "rgba(255, 235, 50, " + opa1 + ")", //黄
+                    "rgba(245, 225, 40, " + opa1 + ")", //黄
+                    "rgba(106, 228, 55, " + opa1 + ")", //绿
+                ],
+                rgba: [
+                    ["rgba(33, 150, 243, " + opa0 + ")","rgba(33, 150, 243, " + opa2 + ")"],
+                    ["rgba(255, 0, 0, " + opa0 + ")","rgba(255, 0, 0, " + opa2 + ")"],
+                    ["rgba(216, 46, 245, " + opa0 + ")","rgba(216, 46, 245, " + opa2 + ")"],
+                    // ["rgba(255, 233, 40, " + opa0 + ")","rgba(255, 233, 40, " + opa2 + ")"],
+                    // ["rgba(255, 235, 50, " + opa0 + ")","rgba(255, 235, 50, " + opa2 + ")"],
+                    ["rgba(245, 225, 40, " + opa0 + ")","rgba(245, 225, 40, " + opa2 + ")"],
+                    ["rgba(106, 228, 55, " + opa0 + ")","rgba(106, 228, 55, " + opa2 + ")"]
+                ],
+                state: 0,
+                nums: 5,
+                size: 40
+            });
+            each(~~(scene.option.height / scene.option.size), function(y, itemY){
+                each(~~(scene.option.width / scene.option.size), function(x, itemX){
+                    num = rand(scene.option.nums);
+                    grd = createLinearGradient(
+                        scene.cxt, 
+                        [
+                            (x) * scene.option.size + scene.option.offsetX,
+                            (y) * scene.option.size + scene.option.offsetY - 6,
+                            (x + 1) * scene.option.size + scene.option.offsetX,
+                            (y + 1) * scene.option.size + scene.option.offsetY
+                        ],
+                        scene.option.rgba[num][1],
+                        scene.option.rgba[num][0],
+                    );
+                    gem = new Gem(scene.cxt, {
+                        x: x * scene.option.size + scene.option.offsetX,
+                        y: y * scene.option.size + scene.option.offsetY,
+                        r: 0,
+                        space: 4,
+                        speed: 4,
+                        type: num,
+                        open: false,
+                        die: false,
+                        width: scene.option.size - 4,
+                        height: scene.option.size - 4,
+                        fillStyle: scene.option.colors[num],
+                        rgba:  scene.option.rgba[num],
+                        grd: grd
+                    });
+                    gem.option.y2 = gem.option.y;
+                    gems.push(gem);
+                });
+            });
+            
+            scene.run();
+        }
+
+        
+        function rand(max, min){
+            min = min || 0;
+            return ~~(Math.random() * (max - min)) + min;
+        }
+        function createLinearGradient(cxt, args, start, center, end){
+                var grd = cxt.createLinearGradient.apply(cxt, args);
+                grd.addColorStop(0, start);
+                end && grd.addColorStop(.6, center);
+                grd.addColorStop(1, end || center);
+                return grd;
+        }
+        function createRadialGradient(cxt, args, start, end){
+                var grd = cxt.createRadialGradient.apply(cxt, args);
+                grd.addColorStop(0, start);
+                grd.addColorStop(1, end);
+                return grd;
+        }
+        function each(items, fn){
+            var i;
+            if (items instanceof Array) {
+                for (i = 0; i < items.length; i++) {
+                    fn && fn.call(items, i, items[i], items);
+                }
+            } else if (items instanceof Object) {
+                for(i in items) {
+                    fn && items.hasOwnProperty(i) && fn.call(items, i, items[i], items);
+                }
+            } else if( typeof items === "number") {
+                for (i = 0; i < items; i++) {
+                    fn && fn.call(null, i, i, items);
+                }
+            }
+            
+        }
+    </script>
+</body>
+</html>

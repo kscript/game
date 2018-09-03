@@ -3,7 +3,9 @@
 见缝插针: https://kscript.github.io/game/demo1.html
 
 
-贪吃蛇: https://kscript.github.io/game/demo2.html (改进中...)
+贪吃蛇: https://kscript.github.io/game/demo2.html 
+
+宝石消除: https://kscript.github.io/game/demo3.html (功能暂未完善...)
 
 ---
 
