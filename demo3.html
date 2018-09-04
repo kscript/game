@@ -68,37 +68,53 @@
                 var h = ~~((this.option.height -this.option.offsetY * 2) / this.option.size);
                 var res = this.search(x, y, w, h, true);
                 var cols = {};
-                this.option.total += res.length * res.length * 5;
-                res.length && console.log("消除 " + res.length + "个宝石, 获得积分: ", res.length * res.length * 5)
-                res.sort(function(a, b){return a - b});
-                each(res, function(index, num) {
-                    if(!cols[num % w]){
-                        cols[num % w] = [num];
-                    } else{
-                        cols[num % w].push(num);
-                    }
-                    gems[num] && gems[num].over();
-                });
-                each(cols, function(col, nums){
-                    self.moveCol(Number(col), nums, w, h);
-                });
+                var colList = [];
+                if(res.length){
+                    this.option.total += res.length * res.length * 5;
+                    // console.log("消除 " + res.length + "个宝石, 获得积分: ", res.length * res.length * 5, res);
+                    res.sort(function(a, b){return a - b});
+                    each(res, function(index, num) {
+                        if(!cols[num % w]){
+                            cols[num % w] = [num];
+                            colList.push(num % w);
+                        } else{
+                            cols[num % w].push(num);
+                        }
+                        gems[num] && gems[num].over();
+                    });
+                    each(colList.sort(function(a, b){return a - b}), function(index, item){
+                        self.moveCol(item, cols[item], w, h);
+                        // self.moveCol(Number(col), nums, w, h);
+                    });
+                }
             },
-            moveRow: function(){
+            moveRow: function(col, nums, w, h, type){
                 console.log(arguments)
+                var size = this.option.size;
+                each(gems, function(index, item){
+                    if(index % w > col){
+                        if(item){
+                            gems[index - 1] = item;
+                            item.option.x2 -= size;
+                            delete gems[index];
+                        }
+                    }
+                })
             },
-            moveCol: function(col, nums, w, h){
+            moveCol: function(col, nums, w, h, type){
                 var max = nums.slice(-1)[0];
                 var len = nums.length;
                 var size = this.option.size;
                 var gem = null;
                 var last = ~~(max / w) + 1;
                 var count = 0;
-                var useRow = 0;
+                var useRow = len;
                 each(h, function(index, item){
                     if(gems[w * item + col]){
                         count++;
                     }
                 });
+                log(arguments);
                 count === len && this.moveRow.apply(this, arguments);
                 each(last, function(index, num){
                     var current = w * (last - index - 1) + col;
@@ -107,9 +123,10 @@
                         if(gem){
                             delete gems[current];
                             if(gem.option.die){
+                                useRow--;
                             } else {
                                 gems[current + (len - useRow) * w] = gem;
-                                gem.option.y2 = gem.option.y + size * (len - useRow);
+                                gem.option.y2 = gem.option.y2 + size * (len - useRow);
                             }
                         }
                     }
@@ -195,6 +212,10 @@
                 if(this.option.y < this.option.y2){
                     this.option.y += 4;
                     y += 4;
+                }
+                if(this.option.x > this.option.x2){
+                    this.option.x -= 4;
+                    x -= 4;
                 }
 
                 cxt.fillStyle = this.option.fillStyle || "#fff";
@@ -285,8 +306,8 @@
             var opa1 = 1;
             var opa2 = .8;
             scene = new Scene(el, {
-                width: localStorage.getItem("snake_width") || 660,
-                height: localStorage.getItem("snake_height") || 660,
+                width: localStorage.getItem("snake_width") || 500,
+                height: localStorage.getItem("snake_height") || 500,
                 level: Number(localStorage.getItem("snake_level") || 0),
                 offsetX: 10,
                 offsetY: 10,
@@ -332,7 +353,7 @@
                         y: y * scene.option.size + scene.option.offsetY,
                         r: 0,
                         space: 4,
-                        speed: 4,
+                        speed: 10,
                         type: num,
                         open: false,
                         die: false,
@@ -342,6 +363,7 @@
                         rgba:  scene.option.rgba[num],
                         grd: grd
                     });
+                    gem.option.x2 = gem.option.x;
                     gem.option.y2 = gem.option.y;
                     gems.push(gem);
                 });
@@ -349,7 +371,10 @@
             
             scene.run();
         }
-
+        var logs = [];
+        function log(){
+            logs.push(arguments)
+        }
         
         function rand(max, min){
             min = min || 0;
