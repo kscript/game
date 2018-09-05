@@ -55,22 +55,38 @@
             },
             addEvents: function(canvas){
                 var self = this;
-                canvas.addEventListener("click", function(e) {
+                canvas.addEventListener("mouseup", function(e) {
                     e = window.event || e;
                     self.click && self.click(e.offsetX || e.x, e.offsetY || e.y);
                 });
             },
             click: function(ox, oy){
+                if(this.option.active) return;
                 var self = this;
-                var x = ~~((ox - this.option.offsetX) / this.option.size);
-                var y = ~~((oy - this.option.offsetY) / this.option.size);
-                var w = ~~((this.option.width -this.option.offsetX * 2) / this.option.size);
-                var h = ~~((this.option.height -this.option.offsetY * 2) / this.option.size);
+                var panel = this.option.panel || {};
+                var x = ~~((ox - this.option.offsetX- (panel.width || 0 )) / this.option.size);
+                var y = ~~((oy - this.option.offsetY - (panel.height || 0 )) / this.option.size);
+                var w = ~~((this.option.width - this.option.offsetX * 2) / this.option.size);
+                var h = ~~((this.option.height - this.option.offsetY * 2) / this.option.size);
                 var res = this.search(x, y, w, h, true);
                 var cols = {};
                 var colList = [];
+                var tests = [];
+                this.option.active = true;
                 if(res.length){
                     this.option.total += res.length * res.length * 5;
+                    panel.texts = [
+                        {},
+                        {
+                            font: "14px Arial",
+                            text: "消除 " + res.length + "个宝石, 获得积分: " + (res.length * res.length * 5),
+                            newLine: false,
+                            left: 10, 
+                            top: 0,
+                            // opacity: 10,
+                            align: 'center'
+                        },
+                    ]
                     // console.log("消除 " + res.length + "个宝石, 获得积分: ", res.length * res.length * 5, res);
                     res.sort(function(a, b){return a - b});
                     each(res, function(index, num) {
@@ -84,22 +100,42 @@
                     });
                     each(colList.sort(function(a, b){return a - b}), function(index, item){
                         self.moveCol(item, cols[item], w, h);
-                        // self.moveCol(Number(col), nums, w, h);
                     });
+                    if(this.autoTest()){
+                        this.animate();
+                    }
                 }
             },
             moveRow: function(col, nums, w, h, type){
-                console.log(arguments)
+                var self = this;
                 var size = this.option.size;
+                var count = 0;
+                var offset = 1;
+                // each(col, function(index, item){
+                //     if(count === 0){
+                //         count = self.testCol(col - index, w, h);
+                //         offset++;
+                //     }
+                // });
+
                 each(gems, function(index, item){
                     if(index % w > col){
                         if(item){
-                            gems[index - 1] = item;
+                            gems[index - offset] = item;
                             item.option.x2 -= size;
                             delete gems[index];
                         }
                     }
                 })
+            },
+            testCol: function(col, w, h){
+                var count = 0;
+                each(h, function(index, item){
+                    if(gems[w * item + col]){
+                        count++;
+                    }
+                });
+                return count;
             },
             moveCol: function(col, nums, w, h, type){
                 var max = nums.slice(-1)[0];
@@ -107,14 +143,9 @@
                 var size = this.option.size;
                 var gem = null;
                 var last = ~~(max / w) + 1;
-                var count = 0;
+                var count = this.testCol(col, w, h);
                 var useRow = len;
-                each(h, function(index, item){
-                    if(gems[w * item + col]){
-                        count++;
-                    }
-                });
-                log(arguments);
+                // log(arguments);
                 count === len && this.moveRow.apply(this, arguments);
                 each(last, function(index, num){
                     var current = w * (last - index - 1) + col;
@@ -131,6 +162,27 @@
                         }
                     }
                 });
+            },
+            autoTest: function(){
+                var self = this;
+                var res = [];
+                var count = 0;
+                var w = ~~(this.option.width / this.option.size);
+                var h = ~~(this.option.height / this.option.size);
+                each(w, function(i1, x){
+                    count === 0 && each(h, function(i2, y){
+                        if(count === 0 && gems[x + y * w]){
+                            res = self.search(x, y, w, h, true);
+                            count = res.length;
+                            res.length && each(res, function(index,item){
+                                if(gems[item]){
+                                    gems[item].option.open  = false;
+                                }
+                            });
+                        }
+                    })
+                });
+                return count === 0;
             },
             search: function(x, y, w, h, first) {
                 var self = this;
@@ -165,11 +217,26 @@
                             res = res.concat(tmp);
                         });
                     }
-                    if(first && !res.length){
+                    // if(first && !res.length){
+                    //     current.option.open = false;
+                    // }
+                    if(!res.length){
                         current.option.open = false;
                     }
                 }
                 return res;
+            },
+            animate: function(){
+                var state = this.option.total < ((this.option.level + 1) * (this.option.level + 2) * 250 + 500);
+                if (state) {
+                    console.log("闯关失败");
+                    reset();
+                } else {
+                    console.log("闯关成功");
+                    localStorage.setItem("gem_level", this.option.level += 1);
+                    localStorage.setItem("gem_total", this.option.total);
+                    reset();
+                }
             },
             run: function (){
                 var self = this;
@@ -180,16 +247,138 @@
                     this.rid = requestAnimationFrame(function(){
                         self.run();
                     });
+                    // this.option.active = false;
                 }
             },
             draw: function() {
-                this.cxt.clearRect(0,0,this.option.width,this.option.height);
+                var panel = this.option.panel || {};
+                this.cxt.clearRect(0,0,this.option.width + (panel.width || 0),this.option.height + (panel.height || 0) );
             },
+            createTexts: function(list) {
+                var panel = this.option.panel || {};
+                list = list || panel.texts || [];
+                var texts = [
+                    // {
+                    //     font: "24px Arial",
+                    //     text: "宝石消除",
+                    //     newLine: false,
+                    //     left: 10, 
+                    //     top: 0,
+                    //     align: 'center'
+                    // },
+                    // {},
+                    {
+                        font: "14px Arial",
+                        text: "当前关卡: " + this.option.level,
+                        newLine: false,
+                        left: 10, 
+                        top: 0,
+                        align: 'left'
+                    },
+                    {},
+                    {
+                        font: "14px Arial",
+                        text: "通关要求: 积分达到" + ((this.option.level + 1) * (this.option.level + 2) * 250 + 500),
+                        newLine: false,
+                        left: 10, 
+                        top: 0,
+                        align: 'left'
+                    },
+                    {},
+                    {
+                        font: "14px Arial",
+                        text: "当前积分: " + this.option.total,
+                        newLine: false,
+                        left: 10, 
+                        top: 0,
+                        align: 'left'
+                    },
+                ];
+                return texts.concat(list);
+            },
+            drawPanel: function(){
+                var texts = this.createTexts();
+                var color = this.option.textStyle || "#fff";
+                var cxt = this.cxt;
+                var conf = {
+                    x: this.option.offsetX,
+                    y: this.option.offsetY,
+                    maxWidth: (this.option.panel || {}).width || this.option.width,
+                    left: 0,
+                    top: 20,
+                    lineHeight: 28
+                }
+                var opacity = 100;
+                var my_gradient = "#ddd";
+                // var my_gradient=cxt.createLinearGradient(conf.x, conf.y - 20, conf.x ,conf.y + 266);
+                // my_gradient.addColorStop(0, "yellow");
+                // my_gradient.addColorStop(0.25, "red");
+                // my_gradient.addColorStop(0.5, "yellow");
+                // my_gradient.addColorStop(0.75, "red");
+                // my_gradient.addColorStop(1, "yellow");
+                
+                each(texts, function(index, item){
+                    if(item.font){
+                        if(item.opacity > 0){
+                            opacity = item.opacity <= 100 ? item.opacity : 200 - item.opacity;
+                            item.opacity += 25;
+                            !opacity && (item.opacity = 0);
+                        }
+                        cxt.textAlign = item.align || "left";
+                        cxt.font= item.font;
+                        cxt.fillStyle = item.color || my_gradient;
+                        var count = Math.ceil(cxt.measureText(item.text).width);
+                        cxt.globalAlpha = opacity / 100;
+                        if(conf.left + count > conf.maxWidth){
+                            conf.left = 0;
+                            conf.top += conf.lineHeight;
+                            if(item.newLine){
+                                
+                            } else{
+                                
+                            }
+                            if(item.align === "center"){
+                                cxt.fillText(item.text, conf.x + conf.maxWidth / 2, conf.y + conf.top + item.top);
+                            } else if(item.align === "right"){
+                                cxt.fillText(item.text, conf.maxWidth - count - item.left, conf.y + conf.top + item.top);
+                            } else{
+                                cxt.fillText(item.text, conf.x + conf.left + item.left, conf.y + conf.top + item.top);
+                            }
+                        } else {
+                            if(item.align === "center"){
+                                cxt.fillText(item.text, conf.x + conf.maxWidth / 2, conf.y + conf.top + item.top);
+                            } else if(item.align === "right"){
+                                cxt.fillText(item.text, conf.maxWidth - count - item.left, conf.y + conf.top + item.top);
+                            } else {
+                                cxt.fillText(item.text, conf.x + conf.left + item.left, conf.y + conf.top + item.top);
+                            }
+                            conf.left += count;
+                        }
+                        cxt.globalAlpha = 1;
+                    } else {
+                        conf.left = 0;
+                        conf.top += conf.lineHeight;
+                    }
+                });
+
+                
+            },
+            
             refresh: function(){
-                this.draw();
-                each(gems, function(index, item){
-                    item && item.draw();
-                })
+                var count = 0;
+                if(this.option.active){
+                    this.draw();
+                    this.drawPanel();
+                    each(gems, function(index, item){
+                        if(item){
+                            item.draw();
+                            if(count === 0 && (item.option.x !== item.option.x2 || item.option.y !== item.option.y2)){
+                                count++;
+                            }
+                        }
+                    });
+                    this.option.active = count > 0;
+                }
             }
         }
         
@@ -305,13 +494,21 @@
             var opa0 = .3;
             var opa1 = 1;
             var opa2 = .8;
+            var panelH = 120;
+            scene = null;
+            gems = [];
             scene = new Scene(el, {
-                width: localStorage.getItem("snake_width") || 500,
-                height: localStorage.getItem("snake_height") || 500,
-                level: Number(localStorage.getItem("snake_level") || 0),
+                width: localStorage.getItem("gem_width") || 500,
+                height: localStorage.getItem("gem_height") || 500,
+                level: Number(localStorage.getItem("gem_level") || 0),
                 offsetX: 10,
                 offsetY: 10,
-                total: 0,
+                panel: {
+                    height: panelH,
+                    texts: []
+                },
+                total: Number(localStorage.getItem("gem_total") || 0),
+                active: true,
                 colors: [
                     "rgba(33, 150, 243, " + opa1 + ")", // 蓝
                     "rgba(255, 0, 0, " + opa1 + ")", //红
@@ -341,19 +538,19 @@
                         scene.cxt, 
                         [
                             (x) * scene.option.size + scene.option.offsetX,
-                            (y) * scene.option.size + scene.option.offsetY - 6,
+                            (y) * scene.option.size + scene.option.offsetY + panelH - 6,
                             (x + 1) * scene.option.size + scene.option.offsetX,
-                            (y + 1) * scene.option.size + scene.option.offsetY
+                            (y + 1) * scene.option.size + scene.option.offsetY + panelH
                         ],
                         scene.option.rgba[num][1],
                         scene.option.rgba[num][0],
                     );
                     gem = new Gem(scene.cxt, {
                         x: x * scene.option.size + scene.option.offsetX,
-                        y: y * scene.option.size + scene.option.offsetY,
+                        y: y * scene.option.size + scene.option.offsetY + panelH,
                         r: 0,
                         space: 4,
-                        speed: 10,
+                        speed: 2,
                         type: num,
                         open: false,
                         die: false,
@@ -371,10 +568,7 @@
             
             scene.run();
         }
-        var logs = [];
-        function log(){
-            logs.push(arguments)
-        }
+
         
         function rand(max, min){
             min = min || 0;
