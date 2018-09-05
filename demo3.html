@@ -72,6 +72,8 @@
                 var cols = {};
                 var colList = [];
                 var tests = [];
+                var diff = false;
+                var type = ((gems[x + y * w]||{}).option||{}).type || -1;
                 this.option.active = true;
                 if(res.length){
                     this.option.total += res.length * res.length * 5;
@@ -87,66 +89,66 @@
                             align: 'center'
                         },
                     ]
-                    // console.log("消除 " + res.length + "个宝石, 获得积分: ", res.length * res.length * 5, res);
+                    console.log("消除 " + res.length + "个宝石, 获得积分: ", res.length * res.length * 5, res);
                     res.sort(function(a, b){return a - b});
                     each(res, function(index, num) {
+                        
                         if(!cols[num % w]){
                             cols[num % w] = [num];
                             colList.push(num % w);
                         } else{
                             cols[num % w].push(num);
                         }
-                        gems[num] && gems[num].over();
+                        if(gems[num]){
+                            type >= 0 && gems[num].option.type !== type && console.log(gems[num].option.type, type, x, y, num)
+                            gems[num].over();
+                        }
                     });
                     each(colList.sort(function(a, b){return a - b}), function(index, item){
                         self.moveCol(item, cols[item], w, h);
                     });
+                    self.testCol();
                     if(this.autoTest()){
                         this.animate();
                     }
                 }
             },
-            moveRow: function(col, nums, w, h, type){
+            moveRow: function(col, offset, w, h){
                 var self = this;
                 var size = this.option.size;
-                var count = 0;
-                var offset = 1;
-                // each(col, function(index, item){
-                //     if(count === 0){
-                //         count = self.testCol(col - index, w, h);
-                //         offset++;
-                //     }
-                // });
-
-                each(gems, function(index, item){
-                    if(index % w > col){
-                        if(item){
-                            gems[index - offset] = item;
-                            item.option.x2 -= size;
-                            delete gems[index];
-                        }
+                each(h, function(index, num){
+                    var current = gems[col + w * num];
+                    if(current){
+                        gems[col + w * num - offset] = current;
+                        current.option.x2 -= offset * size;
+                        delete gems[col + w * num];
                     }
                 })
             },
-            testCol: function(col, w, h){
-                var count = 0;
-                each(h, function(index, item){
-                    if(gems[w * item + col]){
-                        count++;
+            testCol: function(){
+                var self = this;
+                var args = arguments;
+                var offset = 0;
+                var w = ~~((this.option.width - this.option.offsetX * 2) / this.option.size);
+                var h = ~~((this.option.height - this.option.offsetY * 2) / this.option.size);
+                each(w, function(index, item){
+                    if(!gems[w * h - w + index]){
+                        offset++;
+                    } else {
+                        if(offset){
+                            self.moveRow(index, offset, w, h);
+                        }
                     }
                 });
-                return count;
             },
             moveCol: function(col, nums, w, h, type){
+                var self = this;
                 var max = nums.slice(-1)[0];
                 var len = nums.length;
                 var size = this.option.size;
                 var gem = null;
                 var last = ~~(max / w) + 1;
-                var count = this.testCol(col, w, h);
                 var useRow = len;
-                // log(arguments);
-                count === len && this.moveRow.apply(this, arguments);
                 each(last, function(index, num){
                     var current = w * (last - index - 1) + col;
                     if(current <= max){
@@ -258,15 +260,6 @@
                 var panel = this.option.panel || {};
                 list = list || panel.texts || [];
                 var texts = [
-                    // {
-                    //     font: "24px Arial",
-                    //     text: "宝石消除",
-                    //     newLine: false,
-                    //     left: 10, 
-                    //     top: 0,
-                    //     align: 'center'
-                    // },
-                    // {},
                     {
                         font: "14px Arial",
                         text: "当前关卡: " + this.option.level,
@@ -310,12 +303,6 @@
                 }
                 var opacity = 100;
                 var my_gradient = "#ddd";
-                // var my_gradient=cxt.createLinearGradient(conf.x, conf.y - 20, conf.x ,conf.y + 266);
-                // my_gradient.addColorStop(0, "yellow");
-                // my_gradient.addColorStop(0.25, "red");
-                // my_gradient.addColorStop(0.5, "yellow");
-                // my_gradient.addColorStop(0.75, "red");
-                // my_gradient.addColorStop(1, "yellow");
                 
                 each(texts, function(index, item){
                     if(item.font){
@@ -389,7 +376,7 @@
         Gem.prototype = {
             constructor: Gem,
             draw: function(){
-                if(this.option.die) return;
+                // if(this.option.die) return;
                 var cxt = this.cxt;
                 var r = this.option.r;
                 var x = this.option.x + this.option.space;
