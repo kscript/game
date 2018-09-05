@@ -22,6 +22,25 @@
     <div id="app">
     </div>
     <script>
+        var animateFn = {
+            active: "easeInOutQuad",
+            easeInOutQuad : function(t, b, c, d) {
+			    t /= d / 2;
+			    if (t < 1) {
+			        return c / 2 * t * t + b
+			    }
+			    t--;
+			    return - c / 2 * (t * (t - 2) - 1) + b
+			},
+            easeOutQuad : function(t, b, c, d) {
+			    t /= d;
+			    return - c * t * (t - 2) + b
+			},
+			easeOutQuad : function(t, b, c, d) {
+			    t /= d;
+			    return - c * t * (t - 2) + b
+			}
+        }
         function Scene(el, option) {
             if (el) {
                 this.rid = 0;
@@ -53,6 +72,28 @@
                     return canvas;
                 }
             },
+            creatStars: function(index, x, y, w, h){
+                var stars = [];
+                var self = this;
+                each(rand(5, 3), function(index, item){
+                    var star = new Star(scene.cxt, {
+                        x: rand(x + w, x),
+                        y: rand(y + h, y),
+                        r: rand(6, 3),
+                        R: rand(12, 6),
+                        rotate: rand(360),
+                        speed: rand(3, 1),
+                        t: 0,
+                        d: 20,
+                        x2: rand(30,10),
+                        y2: rand(30,10),
+                        color: self.option.colors[rand(self.option.colors.length)],
+                    });
+                    star.option.rgb = star.option.color.match(/\d+/g).slice(0, -1);
+                    stars.push(star);
+                });
+                this.option.stars = this.option.stars.concat(stars);
+            },
             addEvents: function(canvas){
                 var self = this;
                 canvas.addEventListener("mouseup", function(e) {
@@ -71,8 +112,6 @@
                 var res = this.search(x, y, w, h, true);
                 var cols = {};
                 var colList = [];
-                var tests = [];
-                var diff = false;
                 var type = ((gems[x + y * w]||{}).option||{}).type || -1;
                 this.option.active = true;
                 if(res.length){
@@ -89,7 +128,7 @@
                             align: 'center'
                         },
                     ]
-                    console.log("消除 " + res.length + "个宝石, 获得积分: ", res.length * res.length * 5, res);
+                    // console.log("消除 " + res.length + "个宝石, 获得积分: ", res.length * res.length * 5, res);
                     res.sort(function(a, b){return a - b});
                     each(res, function(index, num) {
                         
@@ -102,16 +141,22 @@
                         if(gems[num]){
                             type >= 0 && gems[num].option.type !== type && console.log(gems[num].option.type, type, x, y, num)
                             gems[num].over();
+                            self.creatStars(num, gems[num].option.x,gems[num].option.y,gems[num].option.width, gems[num].option.height);
                         }
                     });
-                    each(colList.sort(function(a, b){return a - b}), function(index, item){
-                        self.moveCol(item, cols[item], w, h);
-                    });
-                    self.testCol();
+                    this.option.cols = cols;
+                    this.option.colList = colList;
+                }
+            },
+            eliminate: function(cb){
+                if (this.option.cols) {
+                    this.testRow(this.option.cols, this.option.colList);
+                    this.testCol();
                     if(this.autoTest()){
                         this.animate();
                     }
                 }
+                cb && cb();
             },
             moveRow: function(col, offset, w, h){
                 var self = this;
@@ -124,6 +169,14 @@
                         delete gems[col + w * num];
                     }
                 })
+            },
+            testRow: function(cols, colList){
+                var self = this;
+                var w = ~~((this.option.width - this.option.offsetX * 2) / this.option.size);
+                var h = ~~((this.option.height - this.option.offsetY * 2) / this.option.size);
+                each(colList.sort(function(a, b){return a - b}), function(index, item){
+                    self.moveCol(item, cols[item], w, h);
+                });
             },
             testCol: function(){
                 var self = this;
@@ -249,7 +302,6 @@
                     this.rid = requestAnimationFrame(function(){
                         self.run();
                     });
-                    // this.option.active = false;
                 }
             },
             draw: function() {
@@ -352,19 +404,39 @@
             },
             
             refresh: function(){
+                var self = this;
                 var count = 0;
+                var starsNum = 0; // 动画执行完的星星
                 if(this.option.active){
                     this.draw();
                     this.drawPanel();
+                    each(this.option.stars, function(index, item){
+                        if(item.option.t === item.option.d){
+                            starsNum++;
+                        } else {
+                            item.option.t++;
+                            item.option.x = animateFn[animateFn.active](item.option.t, item.option.x, item.option.x2 - item.option.x, item.option.d);
+                            item.option.y = animateFn[animateFn.active](item.option.t, item.option.y, item.option.y2 - item.option.y, item.option.d);
+                            item.draw();
+                        }
+                    });
+                    this.eliminate(function(){
+                        // console.log(self.option.active)
+                    });
                     each(gems, function(index, item){
                         if(item){
-                            item.draw();
+                            !item.option.die && item.draw();
                             if(count === 0 && (item.option.x !== item.option.x2 || item.option.y !== item.option.y2)){
                                 count++;
                             }
                         }
                     });
-                    this.option.active = count > 0;
+                    if(starsNum === this.option.stars.length){
+                        self.option.stars = [];
+                        if(count === 0){
+                            self.option.active = false;
+                        }
+                    }
                 }
             }
         }
@@ -468,7 +540,34 @@
                 c.closePath();
             }
         }
-        
+        function Star(cxt, option){
+            this.cxt = cxt;
+            this.option = option;
+        }
+        Star.prototype = {
+            constructor: Star,
+            draw: function(){
+                var self = this;
+                var rotate = this.option.rotate;
+                var r = this.option.r;
+                var R = this.option.R;
+                var x = this.option.x;
+                var y = this.option.y;
+                var rgb = this.option.rgb;
+                var opacity = (this.option.d - this.option.t - 1) / this.option.d;
+                var colors = "rgba(" + rgb.join(",") + "," + (opacity < 0 ? 0 : opacity) + ")";
+                this.cxt.fillStyle = colors;
+                this.cxt.strokeStyle = colors;
+                this.cxt.beginPath();
+                each(5, function(index, item){
+                    self.cxt.lineTo(Math.cos((18 + 72 * index - rotate) / 180 * Math.PI) * R + x, - Math.sin((18 + 72 * index - rotate) / 180 * Math.PI) * R + y);
+                    self.cxt.lineTo(Math.cos((54 + 72 * index - rotate) / 180 * Math.PI) * r + x, - Math.sin((54 + 72 * index - rotate) / 180 * Math.PI) * r + y);
+                });
+                this.cxt.closePath();
+                this.cxt.fill();
+                this.cxt.stroke();
+            }
+        }
         var el = document.getElementById("app");
         var scene, gems = [];
 
@@ -494,6 +593,7 @@
                     height: panelH,
                     texts: []
                 },
+                stars: [],
                 total: Number(localStorage.getItem("gem_total") || 0),
                 active: true,
                 colors: [
