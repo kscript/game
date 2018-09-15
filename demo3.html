@@ -35,21 +35,19 @@
             easeOutQuad : function(t, b, c, d) {
 			    t /= d;
 			    return - c * t * (t - 2) + b
-			},
-			easeOutQuad : function(t, b, c, d) {
-			    t /= d;
-			    return - c * t * (t - 2) + b
 			}
         }
         function Scene(el, option) {
             if (el) {
                 this.rid = 0;
                 this.die = false;
+                this.cache = {};
                 this.option = option || {};
                 this.defaultOption = {
                     width: 360,
                     height: 600
                 }
+                this.offcxt = this.creatOffCxt();
                 this.el = this.creatCanvas(el);
                 this.cxt = this.el.getContext("2d");
             }
@@ -72,9 +70,18 @@
                     return canvas;
                 }
             },
+            creatOffCxt: function(){
+                var panel = this.option.panel || {};
+                var width = panel.width || 0;
+                var height = panel.height || 0;
+                var offcxt = document.createElement("canvas");
+                offcxt.setAttribute("width", (this.option.width || this.defaultOption.width) + width);
+                offcxt.setAttribute("height", (this.option.height || this.defaultOption.height) + height);
+                return offcxt.getContext("2d");
+            },
             creatStars: function(index, x, y, w, h){
                 var stars = [];
-                var self = this;
+                var color = this.option.colors[rand(this.option.colors.length)];
                 each(rand(5, 3), function(index, item){
                     var star = new Star(scene.cxt, {
                         x: rand(x + w, x),
@@ -84,15 +91,109 @@
                         rotate: rand(360),
                         speed: rand(3, 1),
                         t: 0,
-                        d: 20,
-                        x2: rand(30,10),
-                        y2: rand(30,10),
-                        color: self.option.colors[rand(self.option.colors.length)],
+                        d: 25,
+                        x2: -rand(30,10),
+                        y2: -rand(30,10),
+                        color: color,
+                        mode: ['stroke','fill', 'auto'][rand(2)],
+                        animate: '',
+                        rgb: color.match(/\d+/g).slice(0, -1)
                     });
-                    star.option.rgb = star.option.color.match(/\d+/g).slice(0, -1);
                     stars.push(star);
                 });
                 this.option.stars = this.option.stars.concat(stars);
+            },
+            createTexts: function(list) {
+                var panel = this.option.panel || {};
+                list = list || panel.texts || [];
+                var texts = [
+                    {
+                        font: "14px Arial",
+                        text: "当前关卡: " + this.option.level,
+                        newLine: false,
+                        left: 10, 
+                        top: 0,
+                        align: 'left'
+                    },
+                    {},
+                    {
+                        font: "14px Arial",
+                        text: "通关要求: 积分达到" + ((this.option.level + 1) * (this.option.level + 2) * 250 + 500),
+                        newLine: false,
+                        left: 10, 
+                        top: 0,
+                        align: 'left'
+                    },
+                    {},
+                    {
+                        font: "14px Arial",
+                        text: "当前积分: " + this.option.total,
+                        newLine: false,
+                        left: 10, 
+                        top: 0,
+                        align: 'left'
+                    },
+                ];
+                return texts.concat(list);
+            },
+            drawPanel: function(){
+                var texts = this.createTexts();
+                var color = this.option.textStyle || "#fff";
+                var cxt = this.cxt;
+                var conf = {
+                    x: this.option.offsetX,
+                    y: this.option.offsetY,
+                    maxWidth: (this.option.panel || {}).width || this.option.width,
+                    left: 0,
+                    top: 20,
+                    lineHeight: 28
+                }
+                var opacity = 100;
+                var my_gradient = "#ddd";
+                
+                each(texts, function(index, item){
+                    if(item.font){
+                        if(item.opacity > 0){
+                            opacity = item.opacity <= 100 ? item.opacity : 200 - item.opacity;
+                            item.opacity += 25;
+                            !opacity && (item.opacity = 0);
+                        }
+                        cxt.textAlign = item.align || "left";
+                        cxt.font= item.font;
+                        cxt.fillStyle = item.color || my_gradient;
+                        var count = Math.ceil(cxt.measureText(item.text).width);
+                        cxt.globalAlpha = opacity / 100;
+                        if(conf.left + count > conf.maxWidth){
+                            conf.left = 0;
+                            conf.top += conf.lineHeight;
+                            if(item.newLine){
+                                
+                            } else{
+                                
+                            }
+                            if(item.align === "center"){
+                                cxt.fillText(item.text, conf.x + conf.maxWidth / 2, conf.y + conf.top + item.top);
+                            } else if(item.align === "right"){
+                                cxt.fillText(item.text, conf.maxWidth - count - item.left, conf.y + conf.top + item.top);
+                            } else{
+                                cxt.fillText(item.text, conf.x + conf.left + item.left, conf.y + conf.top + item.top);
+                            }
+                        } else {
+                            if(item.align === "center"){
+                                cxt.fillText(item.text, conf.x + conf.maxWidth / 2, conf.y + conf.top + item.top);
+                            } else if(item.align === "right"){
+                                cxt.fillText(item.text, conf.maxWidth - count - item.left, conf.y + conf.top + item.top);
+                            } else {
+                                cxt.fillText(item.text, conf.x + conf.left + item.left, conf.y + conf.top + item.top);
+                            }
+                            conf.left += count;
+                        }
+                        cxt.globalAlpha = 1;
+                    } else {
+                        conf.left = 0;
+                        conf.top += conf.lineHeight;
+                    }
+                });
             },
             addEvents: function(canvas){
                 var self = this;
@@ -158,18 +259,6 @@
                 }
                 cb && cb();
             },
-            moveRow: function(col, offset, w, h){
-                var self = this;
-                var size = this.option.size;
-                each(h, function(index, num){
-                    var current = gems[col + w * num];
-                    if(current){
-                        gems[col + w * num - offset] = current;
-                        current.option.x2 -= offset * size;
-                        delete gems[col + w * num];
-                    }
-                })
-            },
             testRow: function(cols, colList){
                 var self = this;
                 var w = ~~((this.option.width - this.option.offsetX * 2) / this.option.size);
@@ -193,6 +282,18 @@
                         }
                     }
                 });
+            },
+            moveRow: function(col, offset, w, h){
+                var self = this;
+                var size = this.option.size;
+                each(h, function(index, num){
+                    var current = gems[col + w * num];
+                    if(current){
+                        gems[col + w * num - offset] = current;
+                        current.option.x2 -= offset * size;
+                        delete gems[col + w * num];
+                    }
+                })
             },
             moveCol: function(col, nums, w, h, type){
                 var self = this;
@@ -308,101 +409,6 @@
                 var panel = this.option.panel || {};
                 this.cxt.clearRect(0,0,this.option.width + (panel.width || 0),this.option.height + (panel.height || 0) );
             },
-            createTexts: function(list) {
-                var panel = this.option.panel || {};
-                list = list || panel.texts || [];
-                var texts = [
-                    {
-                        font: "14px Arial",
-                        text: "当前关卡: " + this.option.level,
-                        newLine: false,
-                        left: 10, 
-                        top: 0,
-                        align: 'left'
-                    },
-                    {},
-                    {
-                        font: "14px Arial",
-                        text: "通关要求: 积分达到" + ((this.option.level + 1) * (this.option.level + 2) * 250 + 500),
-                        newLine: false,
-                        left: 10, 
-                        top: 0,
-                        align: 'left'
-                    },
-                    {},
-                    {
-                        font: "14px Arial",
-                        text: "当前积分: " + this.option.total,
-                        newLine: false,
-                        left: 10, 
-                        top: 0,
-                        align: 'left'
-                    },
-                ];
-                return texts.concat(list);
-            },
-            drawPanel: function(){
-                var texts = this.createTexts();
-                var color = this.option.textStyle || "#fff";
-                var cxt = this.cxt;
-                var conf = {
-                    x: this.option.offsetX,
-                    y: this.option.offsetY,
-                    maxWidth: (this.option.panel || {}).width || this.option.width,
-                    left: 0,
-                    top: 20,
-                    lineHeight: 28
-                }
-                var opacity = 100;
-                var my_gradient = "#ddd";
-                
-                each(texts, function(index, item){
-                    if(item.font){
-                        if(item.opacity > 0){
-                            opacity = item.opacity <= 100 ? item.opacity : 200 - item.opacity;
-                            item.opacity += 25;
-                            !opacity && (item.opacity = 0);
-                        }
-                        cxt.textAlign = item.align || "left";
-                        cxt.font= item.font;
-                        cxt.fillStyle = item.color || my_gradient;
-                        var count = Math.ceil(cxt.measureText(item.text).width);
-                        cxt.globalAlpha = opacity / 100;
-                        if(conf.left + count > conf.maxWidth){
-                            conf.left = 0;
-                            conf.top += conf.lineHeight;
-                            if(item.newLine){
-                                
-                            } else{
-                                
-                            }
-                            if(item.align === "center"){
-                                cxt.fillText(item.text, conf.x + conf.maxWidth / 2, conf.y + conf.top + item.top);
-                            } else if(item.align === "right"){
-                                cxt.fillText(item.text, conf.maxWidth - count - item.left, conf.y + conf.top + item.top);
-                            } else{
-                                cxt.fillText(item.text, conf.x + conf.left + item.left, conf.y + conf.top + item.top);
-                            }
-                        } else {
-                            if(item.align === "center"){
-                                cxt.fillText(item.text, conf.x + conf.maxWidth / 2, conf.y + conf.top + item.top);
-                            } else if(item.align === "right"){
-                                cxt.fillText(item.text, conf.maxWidth - count - item.left, conf.y + conf.top + item.top);
-                            } else {
-                                cxt.fillText(item.text, conf.x + conf.left + item.left, conf.y + conf.top + item.top);
-                            }
-                            conf.left += count;
-                        }
-                        cxt.globalAlpha = 1;
-                    } else {
-                        conf.left = 0;
-                        conf.top += conf.lineHeight;
-                    }
-                });
-
-                
-            },
-            
             refresh: function(){
                 var self = this;
                 var count = 0;
@@ -410,16 +416,6 @@
                 if(this.option.active){
                     this.draw();
                     this.drawPanel();
-                    each(this.option.stars, function(index, item){
-                        if(item.option.t === item.option.d){
-                            starsNum++;
-                        } else {
-                            item.option.t++;
-                            item.option.x = animateFn[animateFn.active](item.option.t, item.option.x, item.option.x2 - item.option.x, item.option.d);
-                            item.option.y = animateFn[animateFn.active](item.option.t, item.option.y, item.option.y2 - item.option.y, item.option.d);
-                            item.draw();
-                        }
-                    });
                     this.eliminate(function(){
                         // console.log(self.option.active)
                     });
@@ -429,6 +425,13 @@
                             if(count === 0 && (item.option.x !== item.option.x2 || item.option.y !== item.option.y2)){
                                 count++;
                             }
+                        }
+                    });
+                    each(this.option.stars, function(index, item){
+                        if(item.option.t === item.option.d){
+                            starsNum++;
+                        } else {
+                            item.draw();
                         }
                     });
                     if(starsNum === this.option.stars.length){
@@ -448,30 +451,100 @@
         Gem.prototype = {
             constructor: Gem,
             draw: function(){
-                // if(this.option.die) return;
+                this.option.x -= this.option.x > this.option.x2 ? 4 : 0;
+                this.option.y += this.option.y < this.option.y2 ? 4 : 0;
+                this.cxt.putImageData(this.option.imgData, this.option.x + this.option.space, this.option.y + this.option.space);
+            },
+            over: function(){
+                this.option.die = true;
+            }
+        }
+        function Star(cxt, option){
+            this.cxt = cxt;
+            this.option = option;
+            this.creatMediaKey();
+            // if(media){
+            //     this.option.imgData = media.get('Star', option);
+            // }
+        }
+        Star.prototype = {
+            constructor: Star,
+            creatMediaKey: function(){
+                this.option.mediaKey = [this.option.mode, this.option.color, this.option.R, this.option.r].join("-");
+            },
+            draw: function(){
+                var option = this.option;
+                option.t++;
+                option.x = animateFn[animateFn.active](option.t, option.x, option.x2 - option.x, option.d);
+                option.y = animateFn[animateFn.active](option.t, option.y, option.y2 - option.y, option.d);
+                // this.cxt.putImageData(option.imgData, option.x, option.y);
                 var cxt = this.cxt;
-                var r = this.option.r;
-                var x = this.option.x + this.option.space;
-                var y = this.option.y + this.option.space;
-                var w = this.option.width;
-                var h = this.option.height;
+                var rotate = option.rotate;
+                var r = option.r;
+                var R = option.R;
+                var x = option.x;
+                var y = option.y;
+                var rgb = option.rgb;
+                var opacity = (option.d - option.t - 1) / option.d;
+                var colors = "rgba(" + rgb.join(",") + "," + (opacity < 0 ? 0 : opacity) + ")";
+
+                cxt.fillStyle = colors;
+                cxt.strokeStyle = colors;
+                cxt.beginPath();
+                each(5, function(index, item){
+                    cxt.lineTo(Math.cos((18 + 72 * index - rotate) / 180 * Math.PI) * R + x, - Math.sin((18 + 72 * index - rotate) / 180 * Math.PI) * R + y);
+                    cxt.lineTo(Math.cos((54 + 72 * index - rotate) / 180 * Math.PI) * r + x, - Math.sin((54 + 72 * index - rotate) / 180 * Math.PI) * r + y);
+                });
+                cxt.closePath();
+                if(option.mode === 'stroke'){
+                    cxt.stroke();
+                } else if(option.mode === 'fill'){
+                    cxt.fill();
+                }else{
+                    cxt.stroke();
+                    cxt.fill();
+                }
+            }
+        }
+
+        function Media(cxt, option){
+            this.cxt = cxt;
+            this.cache = {};
+            this.option = option;
+            // this.cxt.globalAlpha = 0;
+        };
+        Media.prototype ={
+            constructor: Media,
+            get: function(type, option){
+                option = option || {};
+                var key = type + ':' + (option.mediaKey || option.type);
+                return this.cache[key] = this.cache[key] || this.draw(type, option);
+            },
+            draw: function(type, option){
+                var fn = this['draw' + type];
+                if(fn instanceof Function){
+                    this.cxt.clearRect(0, 0, this.option.width, this.option.height);
+                    return fn.call(this, option);
+                }
+            },
+            drawStar: function(option){
+                var x = 0;
+                var y = 0;
+                return cxt.getImageData(0, 0, R, R);
+            },
+            drawGem: function(option){
+                var cxt = this.cxt;
+                var r = option.r;
+                var x = 0;
+                var y = 0;
+                var w = option.width;
+                var h = option.height;
                 var s = 8;
                 var stroke = true;
-                if(this.option.y < this.option.y2){
-                    this.option.y += 4;
-                    y += 4;
-                }
-                if(this.option.x > this.option.x2){
-                    this.option.x -= 4;
-                    x -= 4;
-                }
 
-                cxt.fillStyle = this.option.fillStyle || "#fff";
+                cxt.fillStyle = option.fillStyle || "#fff";
                 cxt.fillRect(x, y, w, h);
-                // this.roundRect.call(cxt, x, y, w, h, r);
-                // cxt.fill();
-                cxt.fillStyle = 
-                    "rgba(0,0,0,.15)"
+                cxt.fillStyle =  "rgba(0,0,0,.15)";
                 cxt.fillRect(x + s, y + s, w - s * 2, h - s * 2);
                 // 上
                 cxt.fillStyle = createLinearGradient(cxt, [x, y - h, x, y + h + s], "rgba(255,255,255, .05)", "rgba(255,255,255, .4)", "rgba(255,255,255, .1)");
@@ -494,7 +567,7 @@
                 cxt.closePath();
                 cxt.fill();
                 // 下
-                cxt.fillStyle = createLinearGradient(cxt, [x, y + h - s, x, y + h], "rgba(0, 0, 0, .3)", "rgba(0, 0, 0, .15)", "rgba(255, 255, 255, .2)"); // , this.option.rgba[0]
+                cxt.fillStyle = createLinearGradient(cxt, [x, y + h - s, x, y + h], "rgba(0, 0, 0, .3)", "rgba(0, 0, 0, .15)", "rgba(255, 255, 255, .2)"); 
                 // cxt.strokeStyle = "rgba(255,255,255,.2)";
                 cxt.strokeStyle = "rgba(0,0,0,.2)";
                 cxt.beginPath();
@@ -514,62 +587,11 @@
                 cxt.lineTo(x, y + h);
                 cxt.closePath();
                 cxt.fill();
-                
-                // cxt.strokeStyle = "rgba(0,0,0,.05)";
-                // cxt.strokeRect(x + s, y + s, w - s * 2, h - s * 2);
-
-            },
-            over: function(){
-                this.option.die = true;
-            },
-            roundRect: function(x, y, w, h, r){
-                var c = this;
-                if(w < r * 2){
-                    r = w / 2;
-                }
-                if(h < r * 2){
-                    r = h / 2;
-                }
-                c.beginPath();
-                c.lineJoin="round";
-                c.moveTo(x + r, y);
-                c.arcTo(x + w, y, x + w, y + h,r);
-                c.arcTo(x + w, y + h, x, y + h,r);
-                c.arcTo(x, y + h, x, y, r);
-                c.arcTo(x, y, x + w, y, r);
-                c.closePath();
-            }
-        }
-        function Star(cxt, option){
-            this.cxt = cxt;
-            this.option = option;
-        }
-        Star.prototype = {
-            constructor: Star,
-            draw: function(){
-                var self = this;
-                var rotate = this.option.rotate;
-                var r = this.option.r;
-                var R = this.option.R;
-                var x = this.option.x;
-                var y = this.option.y;
-                var rgb = this.option.rgb;
-                var opacity = (this.option.d - this.option.t - 1) / this.option.d;
-                var colors = "rgba(" + rgb.join(",") + "," + (opacity < 0 ? 0 : opacity) + ")";
-                this.cxt.fillStyle = colors;
-                this.cxt.strokeStyle = colors;
-                this.cxt.beginPath();
-                each(5, function(index, item){
-                    self.cxt.lineTo(Math.cos((18 + 72 * index - rotate) / 180 * Math.PI) * R + x, - Math.sin((18 + 72 * index - rotate) / 180 * Math.PI) * R + y);
-                    self.cxt.lineTo(Math.cos((54 + 72 * index - rotate) / 180 * Math.PI) * r + x, - Math.sin((54 + 72 * index - rotate) / 180 * Math.PI) * r + y);
-                });
-                this.cxt.closePath();
-                this.cxt.fill();
-                this.cxt.stroke();
+                return cxt.getImageData(x, y, w, h);
             }
         }
         var el = document.getElementById("app");
-        var scene, gems = [];
+        var scene, media, gems = [];
 
         reset();
         
@@ -618,6 +640,12 @@
                 nums: 5,
                 size: 40
             });
+            if(!media){
+                media = new Media(scene.offcxt, {
+                    width: scene.option.width,
+                    height: scene.option.height
+                });
+            }
             each(~~(scene.option.height / scene.option.size), function(y, itemY){
                 each(~~(scene.option.width / scene.option.size), function(x, itemX){
                     num = rand(scene.option.nums);
@@ -649,6 +677,7 @@
                     });
                     gem.option.x2 = gem.option.x;
                     gem.option.y2 = gem.option.y;
+                    gem.option.imgData = media.get('Gem', gem.option);
                     gems.push(gem);
                 });
             });
