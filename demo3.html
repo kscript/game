@@ -82,25 +82,25 @@
             creatStars: function(index, x, y, w, h){
                 var stars = [];
                 var color = this.option.colors[rand(this.option.colors.length)];
-                each(rand(5, 3), function(index, item){
-                    var star = new Star(scene.cxt, {
-                        x: rand(x + w, x),
-                        y: rand(y + h, y),
-                        r: rand(6, 3),
-                        R: rand(12, 6),
-                        rotate: rand(360),
-                        speed: rand(3, 1),
-                        t: 0,
-                        d: 25,
-                        x2: -rand(30,10),
-                        y2: -rand(30,10),
-                        color: color,
-                        mode: ['stroke','fill', 'auto'][rand(2)],
-                        animate: '',
-                        rgb: color.match(/\d+/g).slice(0, -1)
-                    });
-                    stars.push(star);
-                });
+//                 each(rand(5, 3), function(index, item){
+//                     var star = new Star(scene.cxt, {
+//                         x: rand(x + w, x),
+//                         y: rand(y + h, y),
+//                         r: rand(6, 3),
+//                         R: rand(12, 6),
+//                         rotate: rand(360),
+//                         speed: rand(3, 1),
+//                         t: 0,
+//                         d: 25,
+//                         x2: -rand(30,10),
+//                         y2: -rand(30,10),
+//                         color: color,
+//                         mode: ['stroke','fill', 'auto'][rand(2)],
+//                         animate: '',
+//                         rgb: color.match(/\d+/g).slice(0, -1)
+//                     });
+//                     stars.push(star);
+//                 });
                 this.option.stars = this.option.stars.concat(stars);
             },
             createTexts: function(list) {
