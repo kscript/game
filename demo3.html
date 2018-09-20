@@ -398,11 +398,15 @@
                 var self = this;
                 this.refresh && this.refresh();
                 if(this.option.state > 0 || this.die){
-                    cancelAnimationFrame(this.rid);
+		    clearTimeout(this.rid);
+                    // cancelAnimationFrame(this.rid);
                 }else{
-                    this.rid = requestAnimationFrame(function(){
+		    this.rid = setTimeout(function(){
                         self.run();
-                    });
+                    }, 20);
+                    // this.rid = requestAnimationFrame(function(){
+                    //    self.run();
+                    // });
                 }
             },
             draw: function() {
