@@ -398,15 +398,15 @@
                 var self = this;
                 this.refresh && this.refresh();
                 if(this.option.state > 0 || this.die){
-		    clearTimeout(this.rid);
-                    // cancelAnimationFrame(this.rid);
+		    // clearTimeout(this.rid);
+                    cancelAnimationFrame(this.rid);
                 }else{
-		    this.rid = setTimeout(function(){
-                        self.run();
-                    }, 20);
-                    // this.rid = requestAnimationFrame(function(){
-                    //    self.run();
-                    // });
+   		    // this.rid = setTimeout(function(){
+                    //       self.run();
+                    //   }, 20);
+                    this.rid = requestAnimationFrame(function(){
+                       self.run();
+                    });
                 }
             },
             draw: function() {
@@ -669,7 +669,7 @@
                         y: y * scene.option.size + scene.option.offsetY + panelH,
                         r: 0,
                         space: 4,
-                        speed: 2,
+                        speed: 4,
                         type: num,
                         open: false,
                         die: false,
