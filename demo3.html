@@ -431,13 +431,13 @@
                             }
                         }
                     });
-                    each(this.option.stars, function(index, item){
+                    /*each(this.option.stars, function(index, item){
                         if(item.option.t === item.option.d){
                             starsNum++;
                         } else {
                             item.draw();
                         }
-                    });
+                    });*/
                     if(starsNum === this.option.stars.length){
                         self.option.stars = [];
                         if(count === 0){
@@ -669,7 +669,7 @@
                         y: y * scene.option.size + scene.option.offsetY + panelH,
                         r: 0,
                         space: 4,
-                        speed: 4,
+                        speed: 10,
                         type: num,
                         open: false,
                         die: false,
