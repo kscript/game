@@ -75,8 +75,8 @@
                 var width = panel.width || 0;
                 var height = panel.height || 0;
                 var offcxt = document.createElement("canvas");
-                offcxt.setAttribute("width", (this.option.width || this.defaultOption.width) + width);
-                offcxt.setAttribute("height", (this.option.height || this.defaultOption.height) + height);
+                offcxt.setAttribute("width", +(this.option.width || this.defaultOption.width) + width);
+                offcxt.setAttribute("height", +(this.option.height || this.defaultOption.height) + height);
                 return offcxt.getContext("2d");
             },
             creatStars: function(index, x, y, w, h){
@@ -610,8 +610,8 @@
             scene = null;
             gems = [];
             scene = new Scene(el, {
-                width: localStorage.getItem("gem_width") || 410,
-                height: localStorage.getItem("gem_height") || 410,
+                width: localStorage.getItem("gem_width") || 430,
+                height: localStorage.getItem("gem_height") || 430,
                 level: Number(localStorage.getItem("gem_level") || 0),
                 offsetX: 10,
                 offsetY: 10,
