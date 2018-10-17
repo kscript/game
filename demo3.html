@@ -610,9 +610,9 @@
             scene = null;
             gems = [];
             scene = new Scene(el, {
-                width: localStorage.getItem("gem_width") || 430,
-                height: localStorage.getItem("gem_height") || 430,
-                level: Number(localStorage.getItem("gem_level") || 0),
+                width: Number(localStorage.getItem("gem_width")) || 430,
+                height: Number(localStorage.getItem("gem_height")) || 430,
+                level: Number(localStorage.getItem("gem_level")) || 0,
                 offsetX: 10,
                 offsetY: 10,
                 panel: {
