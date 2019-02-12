@@ -1,5 +1,7 @@
 #### 游戏列表
 
+[![Join the chat at https://gitter.im/kscript-game/community](https://badges.gitter.im/kscript-game/community.svg)](https://gitter.im/kscript-game/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 见缝插针: https://kscript.github.io/game/demo1.html
 
 
