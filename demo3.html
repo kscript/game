@@ -75,32 +75,32 @@
                 var width = panel.width || 0;
                 var height = panel.height || 0;
                 var offcxt = document.createElement("canvas");
-                offcxt.setAttribute("width", +(this.option.width || this.defaultOption.width) + width);
-                offcxt.setAttribute("height", +(this.option.height || this.defaultOption.height) + height);
+                offcxt.setAttribute("width", (this.option.width || this.defaultOption.width) + width);
+                offcxt.setAttribute("height", (this.option.height || this.defaultOption.height) + height);
                 return offcxt.getContext("2d");
             },
             creatStars: function(index, x, y, w, h){
                 var stars = [];
                 var color = this.option.colors[rand(this.option.colors.length)];
-//                 each(rand(5, 3), function(index, item){
-//                     var star = new Star(scene.cxt, {
-//                         x: rand(x + w, x),
-//                         y: rand(y + h, y),
-//                         r: rand(6, 3),
-//                         R: rand(12, 6),
-//                         rotate: rand(360),
-//                         speed: rand(3, 1),
-//                         t: 0,
-//                         d: 25,
-//                         x2: -rand(30,10),
-//                         y2: -rand(30,10),
-//                         color: color,
-//                         mode: ['stroke','fill', 'auto'][rand(2)],
-//                         animate: '',
-//                         rgb: color.match(/\d+/g).slice(0, -1)
-//                     });
-//                     stars.push(star);
-//                 });
+                each(rand(5, 3), function(index, item){
+                    var star = new Star(scene.cxt, {
+                        x: rand(x + w, x),
+                        y: rand(y + h, y),
+                        r: rand(6, 3),
+                        R: rand(12, 6),
+                        rotate: rand(360),
+                        speed: rand(3, 1),
+                        t: 0,
+                        d: 25,
+                        x2: -rand(30,10),
+                        y2: -rand(30,10),
+                        color: color,
+                        mode: ['stroke','fill', 'auto'][rand(2)],
+                        animate: '',
+                        rgb: color.match(/\d+/g).slice(0, -1)
+                    });
+                    stars.push(star);
+                });
                 this.option.stars = this.option.stars.concat(stars);
             },
             createTexts: function(list) {
@@ -216,12 +216,12 @@
                 var type = ((gems[x + y * w]||{}).option||{}).type || -1;
                 this.option.active = true;
                 if(res.length){
-                    this.option.total += res.length * res.length * 5;
+                    this.option.total += (res.length *( res.length + 5)) * 5;
                     panel.texts = [
                         {},
                         {
                             font: "14px Arial",
-                            text: "消除 " + res.length + "个宝石, 获得积分: " + (res.length * res.length * 5),
+                            text: "消除 " + res.length + "个宝石, 获得积分: " + (res.length * res.length + 5) * 5,
                             newLine: false,
                             left: 10, 
                             top: 0,
@@ -229,7 +229,6 @@
                             align: 'center'
                         },
                     ]
-                    // console.log("消除 " + res.length + "个宝石, 获得积分: ", res.length * res.length * 5, res);
                     res.sort(function(a, b){return a - b});
                     each(res, function(index, num) {
                         
@@ -242,7 +241,7 @@
                         if(gems[num]){
                             type >= 0 && gems[num].option.type !== type && console.log(gems[num].option.type, type, x, y, num)
                             gems[num].over();
-                            self.creatStars(num, gems[num].option.x,gems[num].option.y,gems[num].option.width, gems[num].option.height);
+                            self.option.setStar && self.creatStars(num, gems[num].option.x,gems[num].option.y,gems[num].option.width, gems[num].option.height);
                         }
                     });
                     this.option.cols = cols;
@@ -250,12 +249,13 @@
                 }
             },
             eliminate: function(cb){
+                // 如果有被消除的列
                 if (this.option.cols) {
                     this.testRow(this.option.cols, this.option.colList);
                     this.testCol();
-                    if(this.autoTest()){
-                        this.animate();
-                    }
+                    // if(this.autoTest()){
+                        // this.animate();
+                    // }
                 }
                 cb && cb();
             },
@@ -283,6 +283,9 @@
                     }
                 });
             },
+            /**
+             * 移动行
+             */
             moveRow: function(col, offset, w, h){
                 var self = this;
                 var size = this.option.size;
@@ -319,65 +322,68 @@
                     }
                 });
             },
+            /**
+            * 自动检查一遍是否还有可以消除的宝石
+            */
             autoTest: function(){
                 var self = this;
                 var res = [];
-                var count = 0;
+                var noGem = true;
                 var w = ~~(this.option.width / this.option.size);
                 var h = ~~(this.option.height / this.option.size);
+
                 each(w, function(i1, x){
-                    count === 0 && each(h, function(i2, y){
-                        if(count === 0 && gems[x + y * w]){
-                            res = self.search(x, y, w, h, true);
-                            count = res.length;
-                            res.length && each(res, function(index,item){
-                                if(gems[item]){
-                                    gems[item].option.open  = false;
-                                }
-                            });
+                    noGem && each(h, function(i2, y){
+                        if(noGem && gems[x + y * w]){
+                            noGem = self.search(x, y, w, h, true, true);
                         }
-                    })
+                        if(!noGem)return;
+                    });
+                    return noGem;
                 });
-                return count === 0;
+                return noGem;
             },
-            search: function(x, y, w, h, first) {
+            /**
+             * 根据坐标(x, y), 格数(w, h) 搜索类型匹配的宝石
+             * @param {boolean} isFirst 起始点
+             * @param {boolean} shallow 是否为浅搜索(只看四周)
+             */
+            search: function(x, y, w, h, isFirst, shallow) {
                 var self = this;
                 var cIndex = x + y * w;
                 var current = gems[cIndex];
                 var type = current ? current.option.type : -1;
                 var indexs = [];
                 var res = [];
-                var next = [];
                 if(gems.length && type >= 0){
+                    // 根据临界值收集上下左右合法的宝石
                     y > 0 && indexs.push(cIndex - w);
                     x > 0 && indexs.push(cIndex - 1);
                     x < w - 1 && indexs.push(cIndex + 1);
                     y < h - 1 && indexs.push(cIndex + w);
-                    if(indexs.length){
-                        current.option.open = true;
-                    }
-                    // console.log("和", cIndex, "相邻的宝石:", indexs);
+
+                    // 寻找当前宝石周围相同类型的宝石
                     each(indexs, function(index, num){
                         var gem = gems[num];
                         if(gem && !gem.option.open && gem.option.type === type){
-                            gem.option.open = true;
+                            !shallow && (gem.option.open = true);
                             res.push(num);
-                            next.push(num);
                         }
                     });
-                    if(next.length) {
-                        first && res.unshift(cIndex);
-                        each(next, function(index, num){
+                    // 浅搜索的返回结果 是boolean 类型 不参与递归, 后期考虑抽离深浅逻辑
+                    if(shallow){
+                        return res.length === 0;
+                    }
+                    // 如果找到, 将当前宝石的状态设置为开启
+                    if(res.length) {
+                        current.option.open = true;
+                        isFirst && res.unshift(cIndex);
+                        // 以相同类型的宝石为基准, 继续寻找
+                        each(isFirst ? res.slice(1) : res, function(index, num){
                             var tmp = self.search(num % w, ~~(num / w), w, h, false);
                             // console.log("以", num, "为原点搜索的结果为:", tmp);
                             res = res.concat(tmp);
                         });
-                    }
-                    // if(first && !res.length){
-                    //     current.option.open = false;
-                    // }
-                    if(!res.length){
-                        current.option.open = false;
                     }
                 }
                 return res;
@@ -398,14 +404,10 @@
                 var self = this;
                 this.refresh && this.refresh();
                 if(this.option.state > 0 || this.die){
-		    // clearTimeout(this.rid);
                     cancelAnimationFrame(this.rid);
                 }else{
-   		    // this.rid = setTimeout(function(){
-                    //       self.run();
-                    //   }, 20);
                     this.rid = requestAnimationFrame(function(){
-                       self.run();
+                        self.run();
                     });
                 }
             },
@@ -419,7 +421,7 @@
                 var starsNum = 0; // 动画执行完的星星
                 if(this.option.active){
                     this.draw();
-                    //this.drawPanel();
+                    this.drawPanel();
                     this.eliminate(function(){
                         // console.log(self.option.active)
                     });
@@ -431,17 +433,21 @@
                             }
                         }
                     });
-                    /*each(this.option.stars, function(index, item){
+                    each(this.option.stars, function(index, item){
                         if(item.option.t === item.option.d){
                             starsNum++;
                         } else {
                             item.draw();
                         }
-                    });*/
+                    });
                     if(starsNum === this.option.stars.length){
                         self.option.stars = [];
                         if(count === 0){
                             self.option.active = false;
+                            
+                            if(self.autoTest()){
+                                self.animate();
+                            }
                         }
                     }
                 }
@@ -610,15 +616,16 @@
             scene = null;
             gems = [];
             scene = new Scene(el, {
-                width: Number(localStorage.getItem("gem_width")) || 430,
-                height: Number(localStorage.getItem("gem_height")) || 430,
-                level: Number(localStorage.getItem("gem_level")) || 0,
+                width: localStorage.getItem("gem_width") || 500,
+                height: localStorage.getItem("gem_height") || 500,
+                level: Number(localStorage.getItem("gem_level") || 0),
                 offsetX: 10,
                 offsetY: 10,
                 panel: {
                     height: panelH,
                     texts: []
                 },
+                setStar: false,
                 stars: [],
                 total: Number(localStorage.getItem("gem_total") || 0),
                 active: true,
@@ -669,7 +676,7 @@
                         y: y * scene.option.size + scene.option.offsetY + panelH,
                         r: 0,
                         space: 4,
-                        speed: 10,
+                        speed: 2,
                         type: num,
                         open: false,
                         die: false,
